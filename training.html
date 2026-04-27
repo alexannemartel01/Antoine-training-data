@@ -1,1 +1,1893 @@
-<!-- Antoine Training -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Antoine's Training</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ── MOBILE ── */
+  @media (max-width: 480px) {
+    body { font-size: 14px; }
+    select, input { font-size: 16px !important; } /* Prevent iOS zoom */
+  }
+  * { box-sizing: border-box; min-width: 0; }
+  img, svg { max-width: 100%; }
+  body { min-height: 100vh; background: #131211; color: #e8e4e1; font-family: 'Outfit', sans-serif; -webkit-font-smoothing: antialiased; }
+  ::selection { background: #3A6A8A44; color: #fff; }
+  input, select, button, textarea { font-family: inherit; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  select { -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 30px !important; }
+  input::placeholder, textarea::placeholder { color: #555; }
+
+  /* ── OVERLAYS ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+  .modal { background: #1c1a19; border: 1px solid #2a2725; border-radius: 14px; padding: 28px; width: 92%; max-width: 520px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .session-overlay { position: fixed; inset: 0; background: #131211; z-index: 200; display: flex; flex-direction: column; overflow-y: auto; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.25s ease; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .typing { animation: pulse 1.2s ease infinite; }
+  @keyframes timerPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+  @keyframes restPop { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useMemo, useEffect, useRef, useCallback } = React;
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 1 — DONNÉES : EXERCICES
+// ══════════════════════════════════════════════════════════════
+const BASE_EXERCISES = [
+  { id: 1,   name: "Course (Treadmill / Extérieur)",     category: "Cardio",       type: "Endurance",    equipment: "Aucun",           frequency: 95, notes: "Présent dans quasi chaque séance. Intervalles (400m-1000m entre blocs), tempo runs, sprints, 5-10km. Vitesses habituelles: 10-14 km/h." },
+  { id: 2,   name: "SkiErg",                             category: "Cardio",       type: "Endurance",    equipment: "SkiErg",          frequency: 28, notes: "Station Hyrox clé. 250-2000m. Cadence cible: 32-36." },
+  { id: 3,   name: "Rowing / Rameur",                    category: "Cardio",       type: "Endurance",    equipment: "Rameur",          frequency: 25, notes: "250m-1000m. Cadence 24-28. Station Hyrox." },
+  { id: 4,   name: "Bike / Vélo stationnaire",           category: "Cardio",       type: "Endurance",    equipment: "Vélo",            frequency: 12, notes: "Zone 2, 6-15 min entre blocs. Cadence 80-90 rpm." },
+  { id: 5,   name: "StairMaster",                        category: "Cardio",       type: "Endurance",    equipment: "StairMaster",     frequency: 10, notes: "Finisher leg day. 10-15 min. Mode glute bias." },
+  { id: 6,   name: "Marche inclinée (Treadmill)",        category: "Cardio",       type: "Endurance",    equipment: "Tapis",           frequency: 5,  notes: "Incline 15, 3.5 km/h. Récupération active." },
+  { id: 10,  name: "Thrusters",                          category: "Full Body",    type: "Power",        equipment: "Barre / DB",      frequency: 45, notes: "Exercice signature. Barre ou DB 20-25lb. 10-20 reps." },
+  { id: 11,  name: "Burpees (toutes variantes)",         category: "Full Body",    type: "Power",        equipment: "Aucun",           frequency: 42, notes: "Broad jump, box jump, over plate, sync. 8-25 reps. Station Hyrox." },
+  { id: 12,  name: "KB Swing",                           category: "Full Body",    type: "Power",        equipment: "Kettlebell",      frequency: 38, notes: "16-20kg. 12-25 reps. Explosif, hauteur poitrine." },
+  { id: 13,  name: "Med Ball Slam",                      category: "Full Body",    type: "Power",        equipment: "Med Ball",        frequency: 22, notes: "20-30lb. 10-20 reps. Variante: rotational slam." },
+  { id: 14,  name: "Ball Over Shoulder",                 category: "Full Body",    type: "Power",        equipment: "Sandbag / Ball",  frequency: 15, notes: "40lb. 10-15 reps. Full body explosif." },
+  { id: 15,  name: "Plate Ground to Overhead",           category: "Full Body",    type: "Power",        equipment: "Plate",           frequency: 14, notes: "Plate 25-35lb. 10-15 reps." },
+  { id: 16,  name: "KB Clean to Press",                  category: "Full Body",    type: "Power",        equipment: "Kettlebell",      frequency: 13, notes: "8-10 reps/côté. Clean explosif → press." },
+  { id: 17,  name: "Devil's Press",                      category: "Full Body",    type: "Power",        equipment: "DB",              frequency: 5,  notes: "10 reps. Burpee + double DB snatch." },
+  { id: 18,  name: "DB Clean to Squat Press",            category: "Full Body",    type: "Power",        equipment: "DB",              frequency: 6,  notes: "10-12 reps. Clean + squat + press." },
+  { id: 20,  name: "Back Squat (Smith Machine)",         category: "Jambes",       type: "Force",        equipment: "Smith Machine",   frequency: 18, notes: "4×8-10. Progression: 135→155lb. Focus glutes." },
+  { id: 21,  name: "Walking Lunges (chargées)",          category: "Jambes",       type: "Force",        equipment: "DB / Plate / Barre", frequency: 32, notes: "Station Hyrox. 20-50 pas. Charge: 10kg plate, 2×25lb DB." },
+  { id: 22,  name: "Box Jump",                           category: "Jambes",       type: "Pliométrie",   equipment: "Box",             frequency: 25, notes: "12-25 reps. Variantes: overs, step-down, squat box jump." },
+  { id: 23,  name: "Goblet Squat (KB)",                  category: "Jambes",       type: "Force",        equipment: "Kettlebell",      frequency: 10, notes: "KB 20kg. 12 reps. Profondeur maximale." },
+  { id: 24,  name: "Jump Squat / Jump Lunge",            category: "Jambes",       type: "Pliométrie",   equipment: "Aucun / DB",      frequency: 15, notes: "10-20 reps. Explosivité pure." },
+  { id: 25,  name: "Leg Press — Glute Bias",             category: "Jambes",       type: "Hypertrophie", equipment: "Machine",         frequency: 12, notes: "12-15 reps. Progression: 150→310lb. RPE 9-9.5." },
+  { id: 26,  name: "Hack Press / Lying Press",           category: "Jambes",       type: "Hypertrophie", equipment: "Machine",         frequency: 12, notes: "10-12 reps. Drop sets: 360→90lb." },
+  { id: 27,  name: "KB Step-ups",                        category: "Jambes",       type: "Force",        equipment: "Kettlebell / Box", frequency: 8,  notes: "8-12/jambe. Excellent unilatéral." },
+  { id: 28,  name: "Landmine Cyclist Squat",             category: "Jambes",       type: "Renfo Course", equipment: "Landmine",        frequency: 4,  notes: "3×12. Spécifique course." },
+  { id: 30,  name: "Romanian Deadlift (RDL)",            category: "Postérieur",   type: "Force",        equipment: "Barre / Smith",   frequency: 28, notes: "4×8-10. Progression: 115→145lb. Tempo 3 sec descente." },
+  { id: 31,  name: "Hip Thrust (Smith Machine)",         category: "Postérieur",   type: "Hypertrophie", equipment: "Smith Machine",   frequency: 14, notes: "3×10-12. Progression: 115→175lb." },
+  { id: 32,  name: "Elevated Split Squat (Glute Bias)",  category: "Postérieur",   type: "Force",        equipment: "DB",              frequency: 12, notes: "8-12/jambe. DB 2×20-25lb. Version fessier." },
+  { id: 33,  name: "Single-Leg RDL",                     category: "Postérieur",   type: "Stabilité",    equipment: "KB / Landmine",   frequency: 12, notes: "8-15/jambe. Unilatéral clé pour la course." },
+  { id: 34,  name: "Hip Abduction — Externe",            category: "Postérieur",   type: "Activation",   equipment: "Machine",         frequency: 11, notes: "20 reps. Progression: 70→185lb." },
+  { id: 35,  name: "Hip Abduction — Interne",            category: "Postérieur",   type: "Activation",   equipment: "Machine",         frequency: 11, notes: "15 reps. Progression: 50→140lb." },
+  { id: 36,  name: "Seated Leg Curl (Tempo)",            category: "Postérieur",   type: "Hypertrophie", equipment: "Machine",         frequency: 10, notes: "8-10 reps, 3 sec descente. 80→140lb." },
+  { id: 37,  name: "Seated Leg Curl (Force + Squeeze)",  category: "Postérieur",   type: "Hypertrophie", equipment: "Machine",         frequency: 10, notes: "12-15 reps. 70→110lb." },
+  { id: 38,  name: "Cable Kickback",                     category: "Postérieur",   type: "Isolation",    equipment: "Câble",           frequency: 8,  notes: "15/jambe. 17-30lb. Tempo: 2s pause haut." },
+  { id: 39,  name: "Cable Abduction",                    category: "Postérieur",   type: "Isolation",    equipment: "Câble",           frequency: 8,  notes: "15-20/jambe. Cible glute med." },
+  { id: 40,  name: "Glute Bridge / March",               category: "Postérieur",   type: "Activation",   equipment: "Sol / KB",        frequency: 6,  notes: "12-15 reps. KB sur bassin." },
+  { id: 41,  name: "Deadlift (Barre)",                   category: "Postérieur",   type: "Force",        equipment: "Barre",           frequency: 12, notes: "Conventionnel ou trap bar. 8-20 reps." },
+  { id: 50,  name: "Push-ups (toutes variantes)",        category: "Upper Push",   type: "Force",        equipment: "Aucun",           frequency: 38, notes: "10-25 reps. Tempo, shoulder tap, renegade combo." },
+  { id: 51,  name: "Push Press (DB/Barre)",              category: "Upper Push",   type: "Power",        equipment: "DB / Barre",      frequency: 14, notes: "8-12 reps. Explosif." },
+  { id: 52,  name: "Bench Press (DB/Machine)",           category: "Upper Push",   type: "Force",        equipment: "DB / Machine",    frequency: 8,  notes: "8-12 reps. DB 20-30lb." },
+  { id: 53,  name: "Dips (Machine/Anneaux/Box)",         category: "Upper Push",   type: "Force",        equipment: "Machine / Anneaux", frequency: 7, notes: "6-12 reps. Progression calisthenics." },
+  { id: 54,  name: "Pike Press",                         category: "Upper Push",   type: "Calisthenics", equipment: "Box / Sol",       frequency: 5,  notes: "6-8 reps. Simulation mini HSPU." },
+  { id: 55,  name: "Shoulder Press (Machine)",           category: "Upper Push",   type: "Force",        equipment: "Machine",         frequency: 4,  notes: "8-10 reps. 40-60lb." },
+  { id: 60,  name: "Renegade Row",                       category: "Upper Pull",   type: "Force",        equipment: "DB",              frequency: 14, notes: "6-12/bras. Anti-rotation + dos." },
+  { id: 61,  name: "KB/DB Row (Bent-Over)",              category: "Upper Pull",   type: "Force",        equipment: "KB / DB",         frequency: 12, notes: "10-12/bras. Gorilla row, single-arm." },
+  { id: 62,  name: "Pull-ups (Strict/Cluster/Negative)", category: "Upper Pull",   type: "Calisthenics", equipment: "Barre",           frequency: 8,  notes: "Clusters 1+1+1. Negatives 2-3s." },
+  { id: 63,  name: "Dead Hang",                          category: "Upper Pull",   type: "Grip",         equipment: "Barre",           frequency: 10, notes: "20-40 sec. Hollow position." },
+  { id: 64,  name: "Toes-to-Bar (T2B)",                  category: "Upper Pull",   type: "Calisthenics", equipment: "Barre",           frequency: 7,  notes: "4-8 reps. Travail strict." },
+  { id: 65,  name: "Seated Row (Machine)",               category: "Upper Pull",   type: "Force",        equipment: "Machine",         frequency: 4,  notes: "10-12 reps. 70-80lb." },
+  { id: 66,  name: "Lat Pulldown",                       category: "Upper Pull",   type: "Force",        equipment: "Machine",         frequency: 3,  notes: "8 reps. 90lb." },
+  { id: 67,  name: "Barbell Row",                        category: "Upper Pull",   type: "Force",        equipment: "Barre",           frequency: 6,  notes: "50lb, 12-20 reps." },
+  { id: 68,  name: "Inverted Row",                       category: "Upper Pull",   type: "Calisthenics", equipment: "Barre / TRX",     frequency: 4,  notes: "10-12 reps. Tempo 2-1-2." },
+  { id: 70,  name: "Plank (toutes variantes)",           category: "Core",         type: "Stabilité",    equipment: "Aucun",           frequency: 28, notes: "30-60 sec. Side plank, shoulder tap, spider man." },
+  { id: 71,  name: "Russian Twist",                      category: "Core",         type: "Rotation",     equipment: "Med Ball / KB / Plate", frequency: 15, notes: "12-20 reps. Obliques." },
+  { id: 72,  name: "Around the World (Plate/KB)",        category: "Core",         type: "Rotation",     equipment: "Plate / KB",      frequency: 14, notes: "10/sens. Plate 25-35lb." },
+  { id: 73,  name: "Side Bends (KB)",                    category: "Core",         type: "Obliques",     equipment: "KB",              frequency: 12, notes: "10-12/côté." },
+  { id: 74,  name: "V-Ups",                              category: "Core",         type: "Dynamique",    equipment: "Plate / DB",      frequency: 10, notes: "10-12 reps. Contrôle lent." },
+  { id: 75,  name: "Sit-ups (Weighted)",                 category: "Core",         type: "Dynamique",    equipment: "Plate / DB",      frequency: 12, notes: "12-15 reps. Plate 25lb." },
+  { id: 76,  name: "Hollow Hold / Rocks",                category: "Core",         type: "Stabilité",    equipment: "Aucun",           frequency: 8,  notes: "20-30 sec. Forme banane." },
+  { id: 77,  name: "Mountain Climbers",                  category: "Core",         type: "Dynamique",    equipment: "Aucun",           frequency: 12, notes: "20-50 reps. Finisher." },
+  { id: 78,  name: "Rainbow Press (Plate)",              category: "Core",         type: "Rotation",     equipment: "Plate",           frequency: 8,  notes: "8-12/sens. Obliques + épaules." },
+  { id: 79,  name: "Bear Pose KB Pull-Thru",             category: "Core",         type: "Stabilité",    equipment: "KB",              frequency: 8,  notes: "10/côté. Anti-rotation." },
+  { id: 80,  name: "Plate Halo",                         category: "Core",         type: "Mobilité",     equipment: "Plate / KB",      frequency: 10, notes: "10-16 reps. Mobilité épaules." },
+  { id: 81,  name: "Iron Trident",                       category: "Core",         type: "Dynamique",    equipment: "Plate / KB",      frequency: 5,  notes: "15-20 reps. KB 35lb." },
+  { id: 82,  name: "Dead Bug (Weighted)",                category: "Core",         type: "Stabilité",    equipment: "DB / KB",         frequency: 6,  notes: "10/côté. Anti-extension." },
+  { id: 83,  name: "Incline Bench Crunch",               category: "Core",         type: "Dynamique",    equipment: "Banc / Plate",    frequency: 8,  notes: "8-12 reps. Plate 25-35lb." },
+  { id: 84,  name: "Flutter Kicks",                      category: "Core",         type: "Endurance",    equipment: "Aucun",           frequency: 6,  notes: "20-30 reps." },
+  { id: 85,  name: "Hanging Leg Raise",                  category: "Core",         type: "Dynamique",    equipment: "Barre",           frequency: 6,  notes: "10-12 reps. Contrôle." },
+  { id: 90,  name: "Sled Push",                          category: "Strongman",    type: "Power",        equipment: "Sled",            frequency: 20, notes: "Station Hyrox. 3-4 allées. 4×45lb." },
+  { id: 91,  name: "Sled Pull",                          category: "Strongman",    type: "Power",        equipment: "Sled",            frequency: 18, notes: "Station Hyrox. Corde ou harnais. ~78kg." },
+  { id: 92,  name: "Farmer Carry",                       category: "Strongman",    type: "Grip / Core",  equipment: "KB / DB",         frequency: 16, notes: "Station Hyrox. 2×16-20kg. 40-100 pas." },
+  { id: 93,  name: "Tire Flip",                          category: "Strongman",    type: "Power",        equipment: "Pneu",            frequency: 12, notes: "6-8 flips." },
+  { id: 94,  name: "Wall Balls",                         category: "Strongman",    type: "Endurance",    equipment: "Med Ball",        frequency: 18, notes: "Station Hyrox. 14-20lb. 20-100 reps." },
+  { id: 95,  name: "Sandbag Walking Lunge",              category: "Strongman",    type: "Force",        equipment: "Sandbag",         frequency: 6,  notes: "24-50 reps. Charge lourde." },
+  { id: 96,  name: "Suitcase Carry",                     category: "Strongman",    type: "Core / Grip",  equipment: "KB / DB",         frequency: 5,  notes: "20 pas/bras. Anti-flexion latérale." },
+  { id: 97,  name: "Overhead Carry / March",             category: "Strongman",    type: "Stabilité",    equipment: "Plate / KB",      frequency: 8,  notes: "20-30 pas. Plate 35lb." },
+  { id: 100, name: "Handstand Wall Hold",                category: "Calisthenics", type: "Skill",        equipment: "Mur",             frequency: 5,  notes: "3×25-35 sec. Progression vers HSPU." },
+  { id: 101, name: "Crow Pose",                          category: "Calisthenics", type: "Skill",        equipment: "Sol",             frequency: 4,  notes: "2-3×30 sec." },
+  { id: 102, name: "L-Sit Hold",                         category: "Calisthenics", type: "Skill",        equipment: "Sol / Parallettes", frequency: 4, notes: "10-20 sec." },
+  { id: 110, name: "Tibialis Raises",                    category: "Renfo Course", type: "Prévention",   equipment: "Aucun",           frequency: 8,  notes: "20 reps. Prévention périostite." },
+  { id: 111, name: "Standing Calf Raise (Landmine)",     category: "Renfo Course", type: "Force",        equipment: "Landmine",        frequency: 6,  notes: "12 reps. +80-100lb." },
+  { id: 112, name: "Step-Down Lent",                     category: "Renfo Course", type: "Stabilité",    equipment: "Box",             frequency: 4,  notes: "8/jambe. Contrôle excentrique." },
+  { id: 113, name: "Cossack Squat",                      category: "Renfo Course", type: "Mobilité",     equipment: "Aucun",           frequency: 3,  notes: "8/côté. Mobilité hanches." },
+  { id: 114, name: "Landmine Single-Leg RDL",            category: "Renfo Course", type: "Force",        equipment: "Landmine",        frequency: 4,  notes: "8/jambe." },
+  { id: 115, name: "Landmine Lateral Squat",             category: "Renfo Course", type: "Force",        equipment: "Landmine",        frequency: 4,  notes: "8/côté." },
+  { id: 116, name: "Trap Bar Deadlift",                  category: "Renfo Course", type: "Force",        equipment: "Trap Bar",        frequency: 3,  notes: "3×12." },
+];
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 2 — DONNÉES : ROUTINES
+// ══════════════════════════════════════════════════════════════
+const BASE_ROUTINES = [
+  { id: "hyrox-solo",      name: "Hyrox Simulation Solo",        duration: "~1h05",   type: "Hyrox",        difficulty: 5, description: "Simulation complète 8 stations + course.", blocks: ["800m course @ 11.5 km/h → 20 Thrusters","800m → 30 Lunges (2×25lb)","800m → 20 Deadlifts","800m → 20 Burpee Box Jump","800m → 20 Tirage dos","800m → 20 Around the World (35lb)","800m → 20 Push-ups","800m → 20 Box Jumps","Finisher: 400m sprint + 15 Burpees + 20 Air Squats + 50 Mountain Climbers"] },
+  { id: "hyrox-test",      name: "Hyrox Fitness Test",           duration: "~35 min", type: "Hyrox",        difficulty: 5, description: "Test de condition physique format Hyrox.", blocks: ["1000m run 2% incline","50 Burpees Broad Jump","100 Lunges","1000m Row","100 Wall Balls 4kg","4 rounds: 10 Thrusters 20lb + 300m SkiErg"] },
+  { id: "demi-hyrox-duo",  name: "Demi-Hyrox Duo",               duration: "< 35 min",type: "Hyrox",        difficulty: 4, description: "Format officiel duo. Objectif sous 35 min.", blocks: ["500m Run → SkiErg 500m","500m Run → Burpee Broad Jump 40m","500m Run → Rowing 500m","500m Run → Farmer Carry 100m","500m Run → Walking Lunges 50m","500m Run → Wall Balls 50 reps","500m Run → Sled Push","500m Run → Sled Pull"] },
+  { id: "leg-day-glute",   name: "Leg Day — Glute Dominant",     duration: "60-75 min",type: "Hypertrophie", difficulty: 4, description: "Leg day principal avec progression de charges.", blocks: ["Back Squat 4×8-10 (150lb) + RDL 4×8-10 (145lb)","Hip Thrust 3×10-12 (175lb) + Elevated Split Squat 3×10/jambe","Cable Kickback 15/jambe + Cable Abduction 15/jambe","Incline Bench Crunch 3×12 + Deficit Sit-Up 3×12","StairMaster 10 min"] },
+  { id: "leg-day-machine", name: "Leg Day — Machines",           duration: "60 min",  type: "Hypertrophie", difficulty: 4, description: "Séance machines. Progression leg press et hack press.", blocks: ["Hip Abduction Externe ×20 + Interne ×15","Seated Leg Curl Tempo 3s + Force+Squeeze","Leg Press Glute Bias + Hack Press Drop Set (360→90lb)","Incline Crunch (35lb) + Glute Squeeze (45lb)","StairMaster 10-15 min"] },
+  { id: "hybride-type",    name: "WOD Hybride Type",             duration: "45-60 min",type: "Hybride",      difficulty: 3, description: "Blocs alternant course et circuits de force.", blocks: ["500m Run","BLOC 1 (×3): Thrusters ×12 + Box Jump ×12 + RDL+Row ×8/côté + Push-ups ×12","500m Run","BLOC 2 (×3): Med Ball Slam ×15 + Broad Jump ×6 + Plate GTO ×12 + Plank Tap ×20","500m Run","BLOC 3: Around-the-World ×10 + Overhead March ×20 + Side Plank ×10/côté","Finisher: Tire Flip + Burpees × 3 allées"] },
+  { id: "calisthenics",    name: "Calisthenics / Barre",         duration: "45-60 min",type: "Calisthenics", difficulty: 3, description: "Progression pull-ups, T2B, handstand. Objectif: muscle-up et force barre.", blocks: ["Dead Hang 3×35s + Scap Pull-Ups 3×8 + Cluster Pull-Ups (1+1+1)×3 + T2B 3×6","Handstand Wall Hold 3×30s + Shoulder Taps 3×10 + Crow Pose 2×30s","Dips 4×6-8 + Push-Up Tempo 10 + Pike Press 8-10","L-Sit 10-15s + Plank to Pike 10 + Hollow Rocks 15-20"] },
+  { id: "renfo-course",    name: "Renforcement Course",          duration: "45-60 min",type: "Renfo Course", difficulty: 3, description: "Mécanique et résistance en course.", blocks: ["Bike 6 min + Standing Calf Raise ×12 + Cyclist Squat ×12","Bike 6 min + Seated Calf Raise ×12 + Trap Bar Deadlift ×12","Bike 6 min + Landmine Lateral Squat ×8/côté + Tibialis Raises ×20","Bike 6 min + Single-Leg RDL ×8/jambe + Step-Back Lunge ×8/jambe"] },
+  { id: "power-duo",       name: "Power Duo",                    duration: "45-55 min",type: "Duo",          difficulty: 3, description: "WOD en duo. Alternance travail/repos.", blocks: ["400m Course ensemble","Ball Slam ×12 + Broad Jump ×8 + Thrusters ×10 + Bench Hop ×12","You Go I Go: Brouette + Walking Lunges + RDL+Row + Push-Up Challenge","KB Swing ×15 + Burpee Sync ×10 + Plank High Five ×20","Core Duo: Med Ball Pass + Side Plank Reach + Partner Wall Sit"] },
+  { id: "sled-tire",       name: "Sled + Tire Power",            duration: "30-40 min",type: "Strongman",    difficulty: 4, description: "Session dédiée sled et tire flip.", blocks: ["500m Run","Sled Push 4 allées + Pull 4 retours","Tire Flip + Burpees × 3 allées","Side Bends + Around-the-World + Overhead March","500m Run final"] },
+  { id: "upper-push",      name: "Upper Body — Push",            duration: "50-60 min",type: "Hypertrophie", difficulty: 3, description: "Poitrine, épaules, triceps.", blocks: ["Bench Press DB 4×10 (25-30lb) + Push-ups Tempo 3×12","Shoulder Press Machine 3×10 + Pike Press 3×8","Dips Machine 3×10 + Push Press DB 3×8","FINISHER: 100 Push-ups (séries de 15-20)"] },
+  { id: "upper-pull",      name: "Upper Body — Pull",            duration: "50-60 min",type: "Hypertrophie", difficulty: 3, description: "Dorsaux, biceps, grip.", blocks: ["Dead Hang 3×30s + Scap Pull-Ups 3×10 + Pull-Up Clusters 4×(1+1+1)","Seated Row 4×10 (80lb) + Lat Pulldown 3×8 (90lb)","Renegade Row 3×8/bras + Barbell Row 3×12","T2B 3×max + Inverted Row 3×10"] },
+  { id: "express-30",      name: "Full Body Express",            duration: "30 min",  type: "Hybride",      difficulty: 4, description: "30 min, zéro repos prévu.", blocks: ["400m Run","AMRAP 8 min: 10 Thrusters + 10 Burpees + 10 KB Swings","400m Run","AMRAP 8 min: 10 Box Jumps + 10 Push-ups + 10 Med Ball Slams","400m Run sprint final"] },
+  { id: "core-blast",      name: "Core Destroyer",               duration: "30-40 min",type: "Hybride",      difficulty: 3, description: "100% core: rotation, stabilité, anti-extension.", blocks: ["(×3) Around the World ×10/sens + Russian Twist ×20 + Plate Halo ×12","(×3) Hollow Hold 30s + Bear Pose Pull-Thru ×10/côté + Dead Bug ×10/côté","(×3) V-Ups ×12 + Side Bends ×12/côté + Mountain Climbers ×30","FINISHER: Plank 60s + Flutter Kicks ×30 + Hanging Leg Raise ×10"] },
+  { id: "cardio-z2",       name: "Cardio Long — Zone 2",         duration: "60-75 min",type: "Cardio",       difficulty: 2, description: "Cardio basse intensité. FC < 140bpm.", blocks: ["15 min Vélo Zone 2 (cadence 85 rpm)","15 min Tapis incline walk (incline 12, 4.0 km/h)","15 min Rameur cadence 22-24","10 min SkiErg cadence 28-30","10 min Marche cool down"] },
+  { id: "hyrox-stations",  name: "Hyrox Stations Drill",         duration: "40-50 min",type: "Hyrox",        difficulty: 4, description: "Focus technique par station + transitions.", blocks: ["SkiErg 1000m → 200m Run → SkiErg 500m","Sled Push 3 allées + Sled Pull 3 retours (90s repos)","3 rounds: Farmer Carry 50m + 200m Run","Wall Balls 25-25-25-25 reps (45s repos)","Burpee Broad Jump 20m × 4 allers"] },
+  { id: "glute-activ",     name: "Glute Activation + Volume",    duration: "50-60 min",type: "Hypertrophie", difficulty: 3, description: "Activation ciblée puis volume.", blocks: ["ACTIVATION: Hip Abduction Ext ×20 + Int ×15 + Glute Bridge ×15","Hip Thrust 4×12 + Single-Leg RDL 3×10/jambe","Elevated Split Squat 3×10/jambe + Cable Kickback 3×15/jambe","Cable Abduction 3×15/jambe + Glute Bridge March ×12/jambe","StairMaster 12 min glute bias"] },
+  { id: "lower-plyo",      name: "Lower Body Explosif",          duration: "45 min",  type: "Hybride",      difficulty: 4, description: "Pliométrie et puissance des jambes.", blocks: ["WARM-UP: 400m jog + Goblet Squat ×12 + Jump Lunge ×10","(×4) Box Jump ×10 + Jump Squat ×12 + Broad Jump ×8","(×3) Walking Lunges 20 pas (25lb) + KB Swing ×15","(×3) KB Step-ups ×10/jambe + Squat Hold 30s","FINISHER: 200m sprint + 15 Burpee Box Jump + 200m sprint"] },
+  { id: "grip-carry",      name: "Grip & Carry Challenge",       duration: "35-45 min",type: "Strongman",    difficulty: 4, description: "Force de grip et carries.", blocks: ["Dead Hang 3×max + Farmer Carry 4×50m (2×20kg)","Suitcase Carry 3×30m/bras + Overhead Carry 3×30m","(×3) Tire Flip ×6 → Sled Push 1 allée → Sled Pull 1 retour","FINISHER: Farmer Carry max distance (2 min)"] },
+  { id: "recovery",        name: "Active Recovery",              duration: "40-50 min",type: "Récupération", difficulty: 1, description: "Jour de récupération. Mobilité et mouvement léger.", blocks: ["15 min Marche inclinée (incline 10, 3.5 km/h)","Cossack Squat ×8/côté + World's Greatest Stretch ×5/côté","Dead Bug ×8/côté + Plank 30s + Bird Dog ×8/côté","10 min Vélo Zone 1","Étirements: 5 min hanches + ischios"] },
+];
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 3 — DONNÉES : JOURNAL (146 séances historiques)
+// ══════════════════════════════════════════════════════════════
+const BASE_JOURNAL = [];
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 4 — CONSTANTES & COULEURS
+// ══════════════════════════════════════════════════════════════
+const CATEGORIES    = ["Tous","Cardio","Full Body","Jambes","Postérieur","Upper Push","Upper Pull","Core","Strongman","Calisthenics","Renfo Course"];
+const ROUTINE_TYPES = ["Tous","Hyrox","Hybride","Hypertrophie","Calisthenics","Renfo Course","Duo","Strongman","Cardio","Récupération"];
+const EQUIPMENT_LIST = ["Tous","Aucun","Barre","DB","Kettlebell","Smith Machine","Machine","Câble","Med Ball","Plate","Box","Sled","Pneu","SkiErg","Rameur","Landmine","Trap Bar"];
+
+const catColors = {
+  "Cardio":"#5BA3B5","Full Body":"#4A7FA5","Jambes":"#D49A64","Postérieur":"#4A7FA5",
+  "Upper Push":"#A890B8","Upper Pull":"#6A9FB8","Core":"#7BB490","Strongman":"#C46868",
+  "Calisthenics":"#5CAA90","Renfo Course":"#CCA060"
+};
+const rtColors = {
+  "Hyrox":"#4A7FA5","Hybride":"#D49A64","Hypertrophie":"#A890B8","Cardio":"#5BA3B5",
+  "Calisthenics":"#5CAA90","Renfo Course":"#CCA060","Duo":"#5BA3B5","Strongman":"#C46868","Récupération":"#7BB490"
+};
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 5 — UTILITAIRES LOCALSTORAGE
+// ══════════════════════════════════════════════════════════════
+const LS = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } },
+  set(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+};
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 6 — COACH IA — PROMPT & API
+// ══════════════════════════════════════════════════════════════
+const DEFAULT_COACH_PROMPT = `Tu es le coach d'entraînement personnel d'Antoine. Tu parles en français québécois, de façon directe et sans filtre.
+
+CONTEXTE:
+- Antoine s'entraîne de façon hybride: cardio + muscu fonctionnelle, force et endurance
+- Il prépare des compétitions Hyrox (duo avec Alexanne)
+- Il fait du renforcement course, full body, strongman, calisthenics
+- Partenaire d'entraînement d'Alexanne Martel
+- Il s'entraîne régulièrement depuis 2025
+
+INSTRUCTIONS:
+- Quand on te demande un workout, utilise les exercices de la banque en priorité
+- Structure tes workouts en blocs clairs (warm-up, blocs, finisher)
+- Tu peux aussi discuter de nutrition, récupération, technique, programmation, progressions
+- Sois concis mais complet. Pas de bullshit.
+
+JOURNAL DE SÉANCES:
+Quand l'utilisateur te dit ce qu'il va faire ou a fait aujourd'hui, tu dois:
+1. Répondre normalement avec tes commentaires/encouragements
+2. À la FIN de ta réponse, ajouter un bloc JSON entre :::JOURNAL_ENTRY::: et :::END_JOURNAL:::
+
+RÈGLES CRITIQUES pour "blocks":
+- Un bloc = UN exercice ou UN segment distinct de la séance
+- CHAQUE exercice mentionné doit être son PROPRE bloc (string séparé dans le tableau)
+- Ne JAMAIS regrouper plusieurs exercices dans un seul bloc
+- Inclure les sets/reps/poids quand mentionnés
+
+EXEMPLE:
+:::JOURNAL_ENTRY:::
+{"routine":"Leg Day Glute","type":"Hypertrophie","duration":"60 min","blocks":["Back Squat 4×10","RDL 4×8","Hip Thrust 3×12","StairMaster 10 min"],"notes":"Séance jambes focus postérieur"}
+:::END_JOURNAL:::
+
+Types valides: Hyrox, Hybride, Hypertrophie, Calisthenics, Renfo Course, Duo, Strongman, Cardio, Récupération.
+Ne mentionne PAS le bloc JSON dans ta réponse textuelle — il sera traité silencieusement par l'app.`;
+
+function buildSystemPrompt(exercises) {
+  const exList = exercises.map(e => `${e.name} (${e.category}, ${e.type}, ${e.equipment}, freq:${e.frequency})`).join("\n");
+  const base = LS.get("an_coach_prompt", DEFAULT_COACH_PROMPT);
+  return base + "\n\nBANQUE D'EXERCICES (" + exercises.length + " exercices):\n" + exList;
+}
+
+async function callClaude(messages, apiKey, exercises) {
+  const systemPrompt = buildSystemPrompt(exercises);
+  const apiMessages = messages.map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 2000, system: systemPrompt, messages: apiMessages })
+  });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error("Clé API invalide. Vérifie ta clé dans les réglages.");
+    if (res.status === 429) throw new Error("Trop de requêtes. Attends quelques secondes.");
+    throw new Error("Erreur API: " + res.status);
+  }
+  const data = await res.json();
+  return data.content[0].text;
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 7 — PETITS COMPOSANTS RÉUTILISABLES
+// ══════════════════════════════════════════════════════════════
+const Badge = ({ children, color = "#4A7FA5" }) => (
+  <span style={{ display:"inline-block", padding:"2px 7px", borderRadius:4, fontSize:9, fontWeight:500, background:color+"20", color, letterSpacing:0.3 }}>
+    {children}
+  </span>
+);
+
+const Dots = ({ level }) => (
+  <div style={{ display:"flex", gap:2 }}>
+    {[1,2,3,4,5].map(i => <div key={i} style={{ width:5, height:5, borderRadius:3, background: i <= level ? "#4A7FA5" : "#333" }} />)}
+  </div>
+);
+
+const FBar = ({ value, max }) => {
+  const p = Math.min((value / max) * 100, 100);
+  const c = p > 60 ? "#4A7FA5" : p > 35 ? "#D49A64" : p > 15 ? "#5BA3B5" : "#555";
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:6, minWidth:90 }}>
+      <div style={{ flex:1, height:3, background:"#2a2725", borderRadius:2, overflow:"hidden" }}>
+        <div style={{ width:p+"%", height:"100%", background:c, borderRadius:2, transition:"width 0.3s" }} />
+      </div>
+      <span style={{ fontSize:10, color:"#888", fontWeight:600, minWidth:16, textAlign:"right" }}>{value}</span>
+    </div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 8 — TIMER DE REPOS FLOTTANT
+// ══════════════════════════════════════════════════════════════
+function RestTimer() {
+  const [visible, setVisible]   = useState(false);
+  const [duration, setDuration] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [running, setRunning]   = useState(false);
+  const [finished, setFinished] = useState(false);
+  const intervalRef = useRef(null);
+
+  // Durées rapides prédéfinies (secondes)
+  const presets = [30, 45, 60, 90, 120];
+
+  useEffect(() => {
+    if (running && timeLeft > 0) {
+      intervalRef.current = setInterval(() => setTimeLeft(t => t - 1), 1000);
+    } else if (timeLeft === 0 && running) {
+      setRunning(false);
+      setFinished(true);
+      clearInterval(intervalRef.current);
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [running, timeLeft]);
+
+  const start = (sec) => {
+    const d = sec || duration;
+    setDuration(d);
+    setTimeLeft(d);
+    setRunning(true);
+    setFinished(false);
+  };
+
+  const reset = () => {
+    clearInterval(intervalRef.current);
+    setRunning(false);
+    setFinished(false);
+    setTimeLeft(duration);
+  };
+
+  const toggle = () => {
+    if (running) { clearInterval(intervalRef.current); setRunning(false); }
+    else if (timeLeft > 0) { setRunning(true); setFinished(false); }
+  };
+
+  const fmt = (s) => {
+    const m = Math.floor(s / 60);
+    const ss = s % 60;
+    return (m < 10 ? "0" : "") + m + ":" + (ss < 10 ? "0" : "") + ss;
+  };
+
+  const progress = ((duration - timeLeft) / duration) * 100;
+  const accentColor = finished ? "#7BB490" : running ? "#4A7FA5" : "#C9A84C";
+
+  return (
+    <>
+      {/* Bouton flottant */}
+      <button
+        onClick={() => setVisible(v => !v)}
+        style={{
+          position:"fixed", bottom:24, right:20, zIndex:300,
+          width:50, height:50, borderRadius:25,
+          background: running ? "#4A7FA5" : finished ? "#7BB490" : "#1c1a19",
+          border: "1px solid " + (running ? "#4A7FA544" : "#2a2725"),
+          color: running || finished ? "#fff" : "#888",
+          fontSize:18, cursor:"pointer",
+          boxShadow:"0 4px 20px rgba(0,0,0,0.4)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          transition:"all 0.2s",
+          animation: running ? "timerPulse 2s ease infinite" : "none"
+        }}
+        title="Timer de repos"
+      >
+        {finished ? "✓" : "⏱"}
+      </button>
+
+      {/* Panel flottant */}
+      {visible && (
+        <div
+          className="fade-in"
+          style={{
+            position:"fixed", bottom:84, right:16, zIndex:300,
+            background:"#1c1a19", border:"1px solid #2a2725",
+            borderRadius:14, padding:"16px 16px 14px",
+            width:220, boxShadow:"0 12px 40px rgba(0,0,0,0.5)"
+          }}
+        >
+          {/* Header */}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <span style={{ fontSize:11, fontWeight:700, color:"#ccc", letterSpacing:0.5, textTransform:"uppercase" }}>Repos</span>
+            <button onClick={() => setVisible(false)} style={{ background:"none", border:"none", color:"#555", fontSize:16, cursor:"pointer" }}>×</button>
+          </div>
+
+          {/* Cercle de progression */}
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginBottom:12 }}>
+            <div style={{ position:"relative", width:90, height:90 }}>
+              <svg width="90" height="90" style={{ transform:"rotate(-90deg)" }}>
+                <circle cx="45" cy="45" r="38" fill="none" stroke="#2a2725" strokeWidth="5" />
+                <circle cx="45" cy="45" r="38" fill="none" stroke={accentColor} strokeWidth="5"
+                  strokeDasharray={2 * Math.PI * 38}
+                  strokeDashoffset={2 * Math.PI * 38 * (1 - progress / 100)}
+                  style={{ transition:"stroke-dashoffset 0.5s, stroke 0.3s" }}
+                />
+              </svg>
+              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column" }}>
+                <span style={{ fontSize:20, fontWeight:800, color: accentColor, fontVariantNumeric:"tabular-nums", lineHeight:1 }}>
+                  {fmt(timeLeft)}
+                </span>
+                {finished && <span style={{ fontSize:9, color:"#7BB490", fontWeight:600, marginTop:2 }}>Terminé!</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Boutons rapides */}
+          <div style={{ display:"flex", gap:4, marginBottom:10, justifyContent:"center" }}>
+            {presets.map(p => (
+              <button key={p} onClick={() => start(p)}
+                style={{
+                  padding:"4px 6px", borderRadius:6, border:"1px solid #2a2725",
+                  background: duration === p && !running ? "#2a2725" : "transparent",
+                  color: duration === p && !running ? "#e8e4e1" : "#666",
+                  fontSize:10, fontWeight:600, cursor:"pointer"
+                }}
+              >
+                {p < 60 ? p+"s" : (p/60)+"m"}
+              </button>
+            ))}
+          </div>
+
+          {/* Contrôles */}
+          <div style={{ display:"flex", gap:6 }}>
+            <button onClick={toggle}
+              style={{
+                flex:2, padding:"9px", borderRadius:8, border:"none",
+                background: running ? "#333" : accentColor,
+                color: running ? "#aaa" : "#fff",
+                fontSize:12, fontWeight:700, cursor:"pointer"
+              }}
+            >
+              {running ? "Pause" : finished ? "Repart" : timeLeft < duration ? "Reprendre" : "Démarrer"}
+            </button>
+            <button onClick={reset}
+              style={{
+                flex:1, padding:"9px", borderRadius:8, border:"1px solid #2a2725",
+                background:"transparent", color:"#666", fontSize:12, cursor:"pointer"
+              }}
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 9 — CARTE EXERCICE
+// ══════════════════════════════════════════════════════════════
+function ExCard({ ex, maxF }) {
+  const [open, setOpen] = useState(false);
+  const c = catColors[ex.category] || "#888";
+  return (
+    <div onClick={() => setOpen(!open)}
+      style={{ background:"#1c1a19", borderLeft:"3px solid "+(open ? c : c+"88"), borderRadius:"2px 8px 8px 2px", padding:"12px 14px", cursor:"pointer", transition:"all 0.15s", marginBottom:4 }}
+    >
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:10 }}>
+        <div style={{ flex:1, minWidth:140 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:"#e8e4e1", marginBottom:4 }}>{ex.name}</div>
+          <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+            <Badge color={c}>{ex.category}</Badge>
+            <Badge color="#888">{ex.type}</Badge>
+            <Badge color="#666">{ex.equipment}</Badge>
+          </div>
+        </div>
+        <div style={{ minWidth:85 }}><FBar value={ex.frequency} max={maxF} /></div>
+      </div>
+      {open && <div style={{ marginTop:8, paddingTop:8, borderTop:"1px solid #2a2725", fontSize:12, color:"#999", lineHeight:1.6 }}>{ex.notes || "—"}</div>}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 10 — CARTE ROUTINE
+// ══════════════════════════════════════════════════════════════
+function RtCard({ routine, onStart }) {
+  const [open, setOpen] = useState(false);
+  const c = rtColors[routine.type] || "#888";
+  return (
+    <div onClick={() => setOpen(!open)}
+      style={{ background:"#1c1a19", border:"1px solid "+(open ? c+"44" : "#2a2725"), borderRadius:8, padding:"14px 16px", cursor:"pointer", transition:"all 0.15s", marginBottom:6 }}
+    >
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+        <div style={{ flex:1 }}>
+          <div style={{ fontWeight:600, fontSize:13, color:"#e8e4e1", marginBottom:4 }}>{routine.name}</div>
+          <div style={{ display:"flex", gap:4, alignItems:"center", flexWrap:"wrap" }}>
+            <Badge color={c}>{routine.type}</Badge>
+            <Badge color="#888">{routine.duration}</Badge>
+            <Dots level={routine.difficulty} />
+          </div>
+        </div>
+        <span style={{ fontSize:10, color:"#555" }}>{open ? "Fermer" : routine.blocks.length+" blocs"}</span>
+      </div>
+      <div style={{ fontSize:11, color:"#777", marginTop:5, lineHeight:1.5 }}>{routine.description}</div>
+      {open && (
+        <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid #2a2725" }}>
+          {routine.blocks.map((b, i) => (
+            <div key={i} style={{ display:"flex", gap:8, marginBottom:5 }}>
+              <span style={{ background:c+"20", color:c, fontWeight:600, fontSize:9, width:18, height:18, borderRadius:4, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:1 }}>{i+1}</span>
+              <span style={{ fontSize:12, color:"#aaa", lineHeight:1.5 }}>{b}</span>
+            </div>
+          ))}
+          <button onClick={e => { e.stopPropagation(); onStart(routine); }}
+            style={{ marginTop:10, width:"100%", padding:"10px", borderRadius:8, border:"none", background:c, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", letterSpacing:0.3 }}
+          >▶  Commencer la séance</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 11 — MODAL AJOUT EXERCICE
+// ══════════════════════════════════════════════════════════════
+function AddModal({ onClose, onSave }) {
+  const [f, setF] = useState({ name:"", category:"Full Body", type:"", equipment:"", notes:"" });
+  const u = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const s = { width:"100%", background:"#222", border:"1px solid #333", borderRadius:8, padding:"10px 12px", fontSize:13, color:"#e8e4e1", outline:"none", marginBottom:10 };
+  const l = { fontSize:10, fontWeight:600, color:"#888", marginBottom:3, display:"block", letterSpacing:0.5, textTransform:"uppercase" };
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal fade-in">
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:18 }}>
+          <div style={{ fontSize:16, fontWeight:700 }}>Ajouter un exercice</div>
+          <button onClick={onClose} style={{ background:"none", border:"none", fontSize:20, color:"#555", cursor:"pointer" }}>×</button>
+        </div>
+        <label style={l}>Nom *</label>
+        <input style={s} placeholder="Ex: Bulgarian Split Squat" value={f.name} onChange={e => u("name", e.target.value)} />
+        <label style={l}>Catégorie</label>
+        <select style={{ ...s, cursor:"pointer" }} value={f.category} onChange={e => u("category", e.target.value)}>
+          {CATEGORIES.filter(c => c !== "Tous").map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          <div><label style={l}>Type</label><input style={s} placeholder="Force, Power..." value={f.type} onChange={e => u("type", e.target.value)} /></div>
+          <div><label style={l}>Équipement</label><input style={s} placeholder="DB, Barre..." value={f.equipment} onChange={e => u("equipment", e.target.value)} /></div>
+        </div>
+        <label style={l}>Notes</label>
+        <textarea style={{ ...s, minHeight:60, resize:"vertical" }} placeholder="Séries, reps, conseils..." value={f.notes} onChange={e => u("notes", e.target.value)} />
+        <div style={{ display:"flex", gap:8, marginTop:6 }}>
+          <button onClick={onClose} style={{ flex:1, padding:"10px", borderRadius:8, border:"1px solid #333", background:"transparent", color:"#888", fontWeight:500, fontSize:13, cursor:"pointer" }}>Annuler</button>
+          <button onClick={() => { if (f.name.trim()) { onSave(f); onClose(); } }}
+            style={{ flex:1, padding:"10px", borderRadius:8, border:"none", background:f.name.trim() ? "#e8e4e1" : "#333", color:f.name.trim() ? "#131211" : "#555", fontWeight:700, fontSize:13, cursor:f.name.trim() ? "pointer" : "default" }}
+          >Ajouter</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 12 — MODE SÉANCE (CHRONO)
+// ══════════════════════════════════════════════════════════════
+function SessionMode({ routine, onEnd }) {
+  const [step, setStep]       = useState(0);
+  const [sec, setSec]         = useState(0);
+  const [running, setRunning] = useState(true);
+  const interval = useRef(null);
+
+  useEffect(() => {
+    if (running) interval.current = setInterval(() => setSec(s => s + 1), 1000);
+    else clearInterval(interval.current);
+    return () => clearInterval(interval.current);
+  }, [running]);
+
+  const fmt = (s) => { const m = Math.floor(s/60); const ss = s%60; return (m<10?"0":"")+m+":"+(ss<10?"0":"")+ss; };
+  const c = rtColors[routine.type] || "#4A7FA5";
+  const total = routine.blocks.length;
+  const done = step >= total;
+
+  return (
+    <div className="session-overlay fade-in">
+      {/* Top bar */}
+      <div style={{ background:"#1c1a19", borderBottom:"1px solid #2a2725", padding:"16px 20px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <button onClick={onEnd} style={{ background:"none", border:"none", color:"#888", fontSize:13, cursor:"pointer", fontWeight:500 }}>← Terminer</button>
+        <div style={{ fontSize:28, fontWeight:800, color:c, fontVariantNumeric:"tabular-nums", animation:running?"timerPulse 2s ease infinite":"none" }}>{fmt(sec)}</div>
+        <button onClick={() => setRunning(!running)}
+          style={{ background:running?"#333":c, color:running?"#888":"#fff", border:"none", borderRadius:8, padding:"8px 14px", fontSize:12, fontWeight:600, cursor:"pointer" }}
+        >{running ? "Pause" : "Reprendre"}</button>
+      </div>
+
+      {/* Titre */}
+      <div style={{ padding:"20px 20px 8px", textAlign:"center" }}>
+        <div style={{ fontSize:16, fontWeight:700, color:"#e8e4e1" }}>{routine.name}</div>
+        <div style={{ fontSize:12, color:"#666", marginTop:4 }}>{done ? "Séance terminée!" : "Bloc "+(step+1)+" / "+total}</div>
+      </div>
+
+      {/* Barre de progression */}
+      <div style={{ padding:"0 20px", marginBottom:16 }}>
+        <div style={{ height:3, background:"#2a2725", borderRadius:2, overflow:"hidden" }}>
+          <div style={{ width:((done?total:step)/total*100)+"%", height:"100%", background:c, borderRadius:2, transition:"width 0.4s" }} />
+        </div>
+      </div>
+
+      {/* Blocs */}
+      <div style={{ flex:1, padding:"0 20px 20px", overflowY:"auto" }}>
+        {routine.blocks.map((b, i) => {
+          const active = i === step, past = i < step;
+          return (
+            <div key={i} style={{
+              background: active ? c+"15" : past ? "#1a1918" : "#1c1a19",
+              border: active ? "1px solid "+c+"44" : "1px solid #2a2725",
+              borderRadius:10, padding:active?"20px":"12px 16px", marginBottom:8, transition:"all 0.2s", opacity:past?0.5:1
+            }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+                  <span style={{
+                    width:24, height:24, borderRadius:6,
+                    background: past?"#7BB490":active?c:"#333",
+                    color: past||active?"#fff":"#555",
+                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, flexShrink:0
+                  }}>{past ? "✓" : i+1}</span>
+                  <span style={{ fontSize:active?14:12, fontWeight:active?600:400, color:active?"#e8e4e1":past?"#666":"#aaa" }}>{b}</span>
+                </div>
+              </div>
+              {active && !done && (
+                <button onClick={e => { e.stopPropagation(); setStep(step+1); }}
+                  style={{ marginTop:14, width:"100%", padding:"12px", borderRadius:8, border:"none", background:c, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", letterSpacing:0.3 }}
+                >{step < total-1 ? "Bloc suivant →" : "Terminer ✓"}</button>
+              )}
+            </div>
+          );
+        })}
+        {done && (
+          <div style={{ textAlign:"center", padding:"24px 0" }}>
+            <div style={{ fontSize:36, marginBottom:8 }}>🏆</div>
+            <div style={{ fontSize:18, fontWeight:700, color:"#e8e4e1", marginBottom:4 }}>Séance complétée!</div>
+            <div style={{ fontSize:14, color:"#888", marginBottom:16 }}>Durée: {fmt(sec)}</div>
+            <button onClick={onEnd} style={{ padding:"12px 32px", borderRadius:8, border:"none", background:"#e8e4e1", color:"#131211", fontWeight:700, fontSize:14, cursor:"pointer" }}>
+              Sauvegarder et fermer
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 13 — COACH IA
+// ══════════════════════════════════════════════════════════════
+function CoachTab({ pool }) {
+  const [apiKey, setApiKey]         = useState(() => localStorage.getItem("an_api_key") || "");
+  const [keyInput, setKeyInput]     = useState("");
+  const [convos, setConvos]         = useState(() => LS.get("an_coach_convos", []));
+  const [activeId, setActiveId]     = useState(() => { const c = LS.get("an_coach_convos", []); return c.length ? c[0].id : null; });
+  const [input, setInput]           = useState("");
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory]   = useState(false);
+  const [promptText, setPromptText] = useState(() => LS.get("an_coach_prompt", DEFAULT_COACH_PROMPT));
+  const ref = useRef(null);
+  const dropRef = useRef(null);
+
+  useEffect(() => {
+    if (!showHistory) return;
+    const handler = (e) => { if (dropRef.current && !dropRef.current.contains(e.target)) setShowHistory(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showHistory]);
+
+  const activeConvo = convos.find(c => c.id === activeId);
+  const msgs = activeConvo ? activeConvo.messages : [];
+  useEffect(() => { if (ref.current) ref.current.scrollTop = ref.current.scrollHeight; }, [msgs, loading]);
+
+  const saveConvos = (u) => { setConvos(u); LS.set("an_coach_convos", u); };
+
+  const newConvo = () => {
+    const id = "c_" + Date.now();
+    const c = { id, title: "Nouvelle conversation", messages: [], date: new Date().toISOString().slice(0,10) };
+    const u = [c, ...convos]; saveConvos(u); setActiveId(id); setShowHistory(false);
+  };
+
+  const deleteConvo = (id) => {
+    const u = convos.filter(c => c.id !== id); saveConvos(u);
+    if (activeId === id) setActiveId(u.length ? u[0].id : null);
+  };
+
+  const updateMsgs = (newMsgs, title) => {
+    const u = convos.map(c => c.id === activeId ? { ...c, messages: newMsgs, title: title || c.title } : c);
+    saveConvos(u);
+  };
+
+  const saveKey = () => { if (!keyInput.trim()) return; localStorage.setItem("an_api_key", keyInput.trim()); setApiKey(keyInput.trim()); setKeyInput(""); if (!convos.length) newConvo(); };
+  const clearKey = () => { localStorage.removeItem("an_api_key"); setApiKey(""); };
+  const savePrompt = () => { LS.set("an_coach_prompt", promptText); setShowSettings(false); };
+  const resetPrompt = () => setPromptText(DEFAULT_COACH_PROMPT);
+
+  const send = async () => {
+    if (!input.trim() || loading || !activeId) return;
+    const txt = input.trim(); setInput(""); setError("");
+    const newMsgs = [...msgs, { role:"user", text:txt }];
+    const title = msgs.length === 0 ? txt.slice(0,50)+(txt.length>50?"...":"") : undefined;
+    updateMsgs(newMsgs, title);
+    setLoading(true);
+    try {
+      const rawReply = await callClaude(newMsgs, apiKey, pool);
+      let reply = rawReply;
+      const journalMatch = rawReply.match(/:::JOURNAL_ENTRY:::\s*(\{[\s\S]*?\})\s*:::END_JOURNAL:::/);
+      if (journalMatch) {
+        reply = rawReply.replace(/:::JOURNAL_ENTRY:::[\s\S]*?:::END_JOURNAL:::/, "").trim();
+        try {
+          const entry = JSON.parse(journalMatch[1]);
+          const jEntry = { date: new Date().toISOString().slice(0,10), routine: entry.routine||"Séance", type: entry.type||"Hybride", duration: entry.duration||"", blocks: entry.blocks||[], notes: entry.notes||"" };
+          const jrnl = LS.get("an_journal", []); jrnl.unshift(jEntry); LS.set("an_journal", jrnl);
+          reply += "\n\n✅ Séance sauvegardée dans ton Journal!";
+        } catch(pe) {}
+      }
+      const finalMsgs = [...newMsgs, { role:"assistant", text:reply }];
+      updateMsgs(finalMsgs, title);
+    } catch(e) {
+      setError(e.message);
+      if (e.message.includes("invalide")) { localStorage.removeItem("an_api_key"); setApiKey(""); }
+    }
+    setLoading(false);
+  };
+
+  // ── Écran saisie clé API ──
+  if (!apiKey) return (
+    <div style={{ maxWidth:480, margin:"0 auto", padding:"40px 0" }}>
+      <div style={{ textAlign:"center", marginBottom:24 }}>
+        <div style={{ fontSize:32, marginBottom:8 }}>🧠</div>
+        <div style={{ fontSize:18, fontWeight:700, color:"#e8e4e1", marginBottom:6 }}>Coach IA</div>
+        <div style={{ fontSize:13, color:"#888", lineHeight:1.6 }}>Pour activer ton coach, tu as besoin d'une clé API Anthropic.</div>
+      </div>
+      <div style={{ background:"#1c1a19", borderRadius:10, padding:"16px", marginBottom:16 }}>
+        <div style={{ fontSize:12, fontWeight:600, color:"#ccc", marginBottom:8 }}>Comment obtenir ta clé:</div>
+        <div style={{ fontSize:12, color:"#888", lineHeight:1.7, whiteSpace:"pre-line" }}>
+          {"1. Va sur console.anthropic.com\n2. Crée un compte (si pas déjà fait)\n3. Va dans API Keys\n4. Crée une nouvelle clé\n5. Copie-la et colle-la ici"}
+        </div>
+      </div>
+      <div style={{ display:"flex", gap:8 }}>
+        <input type="password" value={keyInput} onChange={e => setKeyInput(e.target.value)} onKeyDown={e => e.key==="Enter" && saveKey()} placeholder="sk-ant-..."
+          style={{ flex:1, background:"#222", border:"1px solid #333", borderRadius:8, padding:"12px 14px", fontSize:13, color:"#e8e4e1", outline:"none" }}
+        />
+        <button onClick={saveKey} style={{ background:keyInput.trim()?"#e8e4e1":"#333", color:keyInput.trim()?"#131211":"#555", border:"none", borderRadius:8, padding:"12px 20px", fontWeight:700, fontSize:13, cursor:keyInput.trim()?"pointer":"default" }}>
+          Activer
+        </button>
+      </div>
+      <div style={{ fontSize:10, color:"#555", marginTop:10, textAlign:"center" }}>Ta clé reste dans ton navigateur, jamais partagée.</div>
+    </div>
+  );
+
+  // ── Réglages ──
+  if (showSettings) return (
+    <div className="fade-in">
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <div style={{ fontSize:15, fontWeight:700 }}>Réglages du Coach</div>
+        <button onClick={() => setShowSettings(false)} style={{ background:"none", border:"none", fontSize:18, color:"#666", cursor:"pointer" }}>×</button>
+      </div>
+      <div style={{ fontSize:11, fontWeight:600, color:"#888", marginBottom:6, textTransform:"uppercase", letterSpacing:0.5 }}>Instructions personnalisées</div>
+      <div style={{ fontSize:11, color:"#555", marginBottom:10, lineHeight:1.5 }}>Modifie ces instructions pour changer le comportement du coach.</div>
+      <textarea value={promptText} onChange={e => setPromptText(e.target.value)}
+        style={{ width:"100%", minHeight:280, background:"#1c1a19", border:"1px solid #2a2725", borderRadius:8, padding:"12px", fontSize:12, color:"#ccc", outline:"none", lineHeight:1.6, resize:"vertical" }}
+      />
+      <div style={{ display:"flex", gap:8, marginTop:12 }}>
+        <button onClick={resetPrompt} style={{ padding:"9px 14px", borderRadius:8, border:"1px solid #333", background:"transparent", color:"#888", fontSize:12, fontWeight:500, cursor:"pointer" }}>Réinitialiser</button>
+        <button onClick={clearKey} style={{ padding:"9px 14px", borderRadius:8, border:"1px solid #C4686833", background:"transparent", color:"#C46868", fontSize:12, fontWeight:500, cursor:"pointer" }}>Changer la clé API</button>
+        <div style={{ flex:1 }} />
+        <button onClick={savePrompt} style={{ padding:"9px 20px", borderRadius:8, border:"none", background:"#e8e4e1", color:"#131211", fontSize:12, fontWeight:700, cursor:"pointer" }}>Sauvegarder</button>
+      </div>
+    </div>
+  );
+
+  // ── Grouper conversations par date ──
+  const groupedConvos = useMemo(() => {
+    const groups = {}; const today = new Date().toISOString().slice(0,10); const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+    convos.forEach(c => {
+      let label;
+      if (c.date === today) label = "Aujourd'hui";
+      else if (c.date === yesterday) label = "Hier";
+      else { const [y,m,d] = c.date.split("-"); const mn = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]; label = d+" "+mn[parseInt(m)-1]+" "+y; }
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(c);
+    });
+    return Object.entries(groups);
+  }, [convos]);
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", minHeight:500 }}>
+      {/* Top bar */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10, paddingBottom:8, borderBottom:"1px solid #2a2725" }}>
+        <div ref={dropRef} style={{ display:"flex", alignItems:"center", gap:6, flex:1, minWidth:0, position:"relative" }}>
+          <div style={{ width:6, height:6, borderRadius:3, background:"#7BB490", flexShrink:0 }} />
+          <div onClick={() => setShowHistory(!showHistory)} style={{ display:"flex", alignItems:"center", gap:4, cursor:"pointer", minWidth:0 }}>
+            <span style={{ fontSize:11, color:"#ccc", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:200, fontWeight:500 }}>
+              {activeConvo ? activeConvo.title : "Coach IA"}
+            </span>
+            <span style={{ fontSize:8, color:"#555", transition:"transform 0.2s", transform:showHistory?"rotate(180deg)":"rotate(0)" }}>▼</span>
+          </div>
+          {/* Dropdown conversations */}
+          {showHistory && (
+            <div style={{ position:"absolute", top:"100%", left:0, marginTop:8, background:"#1c1a19", border:"1px solid #2a2725", borderRadius:10, width:300, maxHeight:400, overflowY:"auto", zIndex:50, boxShadow:"0 12px 40px rgba(0,0,0,0.5)" }}>
+              <div style={{ padding:"10px 12px", borderBottom:"1px solid #2a2725", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span style={{ fontSize:11, fontWeight:600, color:"#888" }}>{convos.length} conversation{convos.length>1?"s":""}</span>
+                <button onClick={e => { e.stopPropagation(); newConvo(); }} style={{ background:"#e8e4e1", color:"#131211", border:"none", borderRadius:6, padding:"4px 12px", fontSize:10, fontWeight:700, cursor:"pointer" }}>+ Nouvelle</button>
+              </div>
+              {!convos.length && <div style={{ padding:"16px", textAlign:"center", color:"#555", fontSize:11 }}>Aucune conversation</div>}
+              {groupedConvos.map(([dateLabel, items]) => (
+                <div key={dateLabel}>
+                  <div style={{ padding:"8px 12px 4px", fontSize:9, fontWeight:600, color:"#555", letterSpacing:0.8, textTransform:"uppercase" }}>{dateLabel}</div>
+                  {items.map(c => (
+                    <div key={c.id} onClick={() => { setActiveId(c.id); setShowHistory(false); }}
+                      style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", cursor:"pointer", background:c.id===activeId?"#2a2725":"transparent", transition:"background 0.1s" }}
+                    >
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:11, fontWeight:500, color:c.id===activeId?"#e8e4e1":"#aaa", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.title}</div>
+                        <div style={{ fontSize:9, color:"#555", marginTop:1 }}>{c.messages.length} msg</div>
+                      </div>
+                      <button onClick={e => { e.stopPropagation(); deleteConvo(c.id); }} style={{ background:"none", border:"none", color:"#333", fontSize:12, cursor:"pointer", padding:"2px 4px", flexShrink:0 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+          <button onClick={newConvo} style={{ background:"none", border:"1px solid #333", borderRadius:6, padding:"4px 10px", fontSize:10, color:"#666", cursor:"pointer" }}>+ Nouvelle</button>
+          <button onClick={() => setShowSettings(true)} style={{ background:"none", border:"1px solid #333", borderRadius:6, padding:"4px 10px", fontSize:10, color:"#666", cursor:"pointer" }}>⚙</button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div ref={ref} style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, paddingBottom:12 }}>
+        {!activeId && <div style={{ textAlign:"center", padding:"40px", color:"#555" }}>Clique sur "+ Nouvelle" pour commencer.</div>}
+        {activeId && !msgs.length && (
+          <div style={{ textAlign:"center", padding:"30px 20px" }}>
+            <div style={{ fontSize:28, marginBottom:8 }}>💬</div>
+            <div style={{ fontSize:13, color:"#888", lineHeight:1.7, whiteSpace:"pre-line" }}>{"Pose-moi n'importe quelle question!\n\n• \"Fais-moi un workout de jambes\"\n• \"Comment améliorer mon Hyrox?\"\n• \"Quoi manger avant un training?\"\n• \"Plan de 4 semaines pour mes pull-ups\"\n• \"Analyse mes progressions\""}</div>
+          </div>
+        )}
+        {msgs.map((m, i) => (
+          <div key={i} className="fade-in" style={{ display:"flex", justifyContent:m.role==="user"?"flex-end":"flex-start" }}>
+            <div style={{
+              maxWidth:"88%", background:m.role==="user"?"#e8e4e1":"#1c1a19", color:m.role==="user"?"#131211":"#ccc",
+              border:m.role==="user"?"none":"1px solid #2a2725",
+              borderRadius:m.role==="user"?"12px 12px 2px 12px":"12px 12px 12px 2px",
+              padding:"10px 14px", fontSize:13, lineHeight:1.65, whiteSpace:"pre-wrap"
+            }}>{m.text}</div>
+          </div>
+        ))}
+        {loading && <div className="typing" style={{ background:"#1c1a19", border:"1px solid #2a2725", borderRadius:"12px 12px 12px 2px", padding:"10px 14px", fontSize:13, color:"#555", width:"fit-content" }}>Réflexion en cours...</div>}
+        {error && <div style={{ background:"#C4686815", border:"1px solid #C4686833", borderRadius:8, padding:"8px 12px", fontSize:12, color:"#C46868" }}>{error}</div>}
+      </div>
+
+      {/* Input */}
+      {activeId && (
+        <div style={{ display:"flex", gap:8, paddingTop:12, borderTop:"1px solid #2a2725", marginTop:8, flexShrink:0 }}>
+          <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key==="Enter" && !e.shiftKey && send()} placeholder="Écris ton message..." disabled={loading}
+            style={{ flex:1, background:"#1c1a19", border:"1px solid #333", borderRadius:8, padding:"11px 14px", fontSize:13, color:"#e8e4e1", outline:"none", opacity:loading?0.5:1 }}
+          />
+          <button onClick={send} disabled={loading}
+            style={{ background:input.trim()&&!loading?"#e8e4e1":"#333", color:input.trim()&&!loading?"#131211":"#555", border:"none", borderRadius:8, padding:"11px 18px", fontWeight:700, fontSize:13, cursor:input.trim()&&!loading?"pointer":"default", transition:"all 0.2s", flexShrink:0 }}
+          >{loading ? "..." : "Envoyer"}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 14 — JOURNAL — ENTRÉE
+// ══════════════════════════════════════════════════════════════
+function JournalEntry({ entry, index, onUpdate, onDelete, onStart }) {
+  const [open, setOpen]       = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm]       = useState(entry);
+  const [blockText, setBlockText] = useState((entry.blocks||[]).join("\n"));
+  const tc = rtColors[entry.type] || "#888";
+  const blocks = entry.blocks?.length ? entry.blocks : (entry.notes ? entry.notes.split("\n").filter(l => l.trim()) : []);
+  const s = { width:"100%", background:"#222", border:"1px solid #333", borderRadius:6, padding:"8px 10px", fontSize:12, color:"#e8e4e1", outline:"none", marginBottom:6 };
+  const l = { fontSize:9, fontWeight:600, color:"#666", marginBottom:2, display:"block", letterSpacing:0.5, textTransform:"uppercase" };
+
+  const save = () => { const nb = blockText.split("\n").filter(l => l.trim()); onUpdate(index, { ...form, blocks:nb }); setEditing(false); };
+  const cancel = () => { setForm(entry); setBlockText((entry.blocks||[]).join("\n")); setEditing(false); };
+
+  if (editing) return (
+    <div className="fade-in" style={{ background:"#1c1a19", border:"1px solid "+tc+"44", borderRadius:10, padding:"16px", marginBottom:6 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:4 }}>
+        <div><label style={l}>Date</label><input type="date" style={s} value={form.date||""} onChange={e => setForm(p => ({ ...p, date:e.target.value }))} /></div>
+        <div><label style={l}>Type</label>
+          <select style={{ ...s, cursor:"pointer" }} value={form.type||"Hybride"} onChange={e => setForm(p => ({ ...p, type:e.target.value }))}>
+            {ROUTINE_TYPES.filter(t => t!=="Tous").map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div><label style={l}>Durée</label><input style={s} value={form.duration||""} placeholder="55 min" onChange={e => setForm(p => ({ ...p, duration:e.target.value }))} /></div>
+      </div>
+      <label style={l}>Nom</label>
+      <input style={s} value={form.routine||""} onChange={e => setForm(p => ({ ...p, routine:e.target.value }))} />
+      <label style={l}>Blocs (1 par ligne)</label>
+      <textarea style={{ ...s, minHeight:100, resize:"vertical", lineHeight:1.6 }} value={blockText} placeholder="Bloc 1: Back Squat 4×10\nBloc 2: RDL 4×8" onChange={e => setBlockText(e.target.value)} />
+      <label style={l}>Notes</label>
+      <textarea style={{ ...s, minHeight:40, resize:"vertical" }} value={form.notes||""} onChange={e => setForm(p => ({ ...p, notes:e.target.value }))} />
+      <div style={{ display:"flex", gap:6, marginTop:4 }}>
+        <button onClick={cancel} style={{ flex:1, padding:"8px", borderRadius:6, border:"1px solid #333", background:"transparent", color:"#888", fontSize:12, fontWeight:500, cursor:"pointer" }}>Annuler</button>
+        <button onClick={save} style={{ flex:1, padding:"8px", borderRadius:6, border:"none", background:"#e8e4e1", color:"#131211", fontSize:12, fontWeight:700, cursor:"pointer" }}>Sauvegarder</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div onClick={() => setOpen(!open)}
+      style={{ background:"#1c1a19", border:"1px solid "+(open?tc+"44":"#2a2725"), borderRadius:10, padding:"14px 16px", cursor:"pointer", transition:"all 0.15s", marginBottom:6 }}
+    >
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+        <div style={{ flex:1 }}>
+          <div style={{ fontWeight:600, fontSize:13, color:"#e8e4e1", marginBottom:4 }}>{entry.routine}</div>
+          <div style={{ display:"flex", gap:4, alignItems:"center", flexWrap:"wrap" }}>
+            <Badge color={tc}>{entry.type}</Badge>
+            {entry.duration && <Badge color="#888">{entry.duration}</Badge>}
+            <Badge color="#555">{entry.date}</Badge>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:4, alignItems:"center", flexShrink:0 }}>
+          <span style={{ fontSize:10, color:"#555" }}>{open?"Fermer":blocks.length+" bloc"+(blocks.length>1?"s":"")}</span>
+          <button onClick={e => { e.stopPropagation(); setEditing(true); }} style={{ background:"none", border:"none", color:"#555", fontSize:11, cursor:"pointer", padding:"2px 6px" }}>✎</button>
+          <button onClick={e => { e.stopPropagation(); onDelete(index); }} style={{ background:"none", border:"none", color:"#444", fontSize:14, cursor:"pointer", padding:"2px 6px" }}>×</button>
+        </div>
+      </div>
+      {entry.notes && <div style={{ fontSize:11, color:"#777", marginTop:5, lineHeight:1.5 }}>{entry.notes}</div>}
+      {open && (
+        <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid #2a2725" }}>
+          {blocks.map((b, i) => (
+            <div key={i} style={{ display:"flex", gap:8, marginBottom:5 }}>
+              <span style={{ background:tc+"20", color:tc, fontWeight:600, fontSize:9, width:18, height:18, borderRadius:4, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:1 }}>{i+1}</span>
+              <span style={{ fontSize:12, color:"#aaa", lineHeight:1.5 }}>{b}</span>
+            </div>
+          ))}
+          {!blocks.length && <div style={{ fontSize:12, color:"#555", fontStyle:"italic" }}>Aucun bloc détaillé.</div>}
+          {blocks.length > 0 && (
+            <button onClick={e => { e.stopPropagation(); onStart({ name:entry.routine, type:entry.type, duration:entry.duration, difficulty:3, blocks }); }}
+              style={{ marginTop:10, width:"100%", padding:"10px", borderRadius:8, border:"none", background:tc, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", letterSpacing:0.3 }}
+            >▶  Commencer la séance</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 15 — JOURNAL TAB
+// ══════════════════════════════════════════════════════════════
+function JournalTab({ onStart }) {
+  const loadEntries = () => {
+    const custom = LS.get("an_journal", []);
+    const customDates = new Set(custom.map(e => e.date+"|"+e.routine));
+    const base = BASE_JOURNAL.filter(e => !customDates.has(e.date+"|"+e.routine));
+    return [...custom, ...base].sort((a, b) => b.date.localeCompare(a.date));
+  };
+  const [entries, setEntries]   = useState(loadEntries);
+  const [showAdd, setShowAdd]   = useState(false);
+  const [view, setView]         = useState("calendar");
+  const [calMonth, setCalMonth] = useState(() => { const n = new Date(); return { y:n.getFullYear(), m:n.getMonth() }; });
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [form, setForm] = useState({ date:new Date().toISOString().slice(0,10), routine:"", type:"Hybride", duration:"", blocks:[], notes:"" });
+
+  useEffect(() => { setEntries(loadEntries()); }, []);
+
+  const persist = (u) => { setEntries(u); LS.set("an_journal", u); };
+  const save = () => { if (!form.routine.trim()) return; persist([{ ...form }, ...entries]); setForm({ date:new Date().toISOString().slice(0,10), routine:"", type:"Hybride", duration:"", blocks:[], notes:"" }); setShowAdd(false); };
+  const del = (i) => persist(entries.filter((_, j) => j!==i));
+  const update = (i, data) => { const u = [...entries]; u[i] = data; persist(u); };
+
+  const s = { width:"100%", background:"#222", border:"1px solid #333", borderRadius:8, padding:"10px 12px", fontSize:13, color:"#e8e4e1", outline:"none", marginBottom:10 };
+  const l = { fontSize:10, fontWeight:600, color:"#888", marginBottom:3, display:"block", letterSpacing:0.5, textTransform:"uppercase" };
+
+  const grouped = {};
+  entries.forEach((e, i) => { const m = e.date?.slice(0,7)||"autre"; if (!grouped[m]) grouped[m]=[]; grouped[m].push({ entry:e, index:i }); });
+  const monthNames = {"01":"Janvier","02":"Février","03":"Mars","04":"Avril","05":"Mai","06":"Juin","07":"Juillet","08":"Août","09":"Septembre","10":"Octobre","11":"Novembre","12":"Décembre"};
+  const monthFull = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const dayLabels = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+
+  const calEntries = useMemo(() => {
+    const map = {};
+    entries.forEach(e => { if (e.date) { if (!map[e.date]) map[e.date]=[]; map[e.date].push(e); } });
+    return map;
+  }, [entries]);
+
+  const calDays = useMemo(() => {
+    const first = new Date(calMonth.y, calMonth.m, 1);
+    const startDay = first.getDay();
+    const daysInMonth = new Date(calMonth.y, calMonth.m+1, 0).getDate();
+    const days = [];
+    for (let i=0; i<startDay; i++) days.push(null);
+    for (let d=1; d<=daysInMonth; d++) days.push(d);
+    return days;
+  }, [calMonth]);
+
+  const todayStr = new Date().toISOString().slice(0,10);
+  const dateStr = (d) => calMonth.y+"-"+String(calMonth.m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+  const selectedEntries = selectedDate ? entries.map((e,i) => ({ entry:e, index:i })).filter(({entry}) => entry.date===selectedDate) : [];
+  const prevMonth = () => setCalMonth(p => p.m===0 ? { y:p.y-1, m:11 } : { y:p.y, m:p.m-1 });
+  const nextMonth = () => setCalMonth(p => p.m===11 ? { y:p.y+1, m:0 } : { y:p.y, m:p.m+1 });
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:"#e8e4e1" }}>{entries.length} séances</div>
+          <div style={{ display:"flex", background:"#222", borderRadius:6, padding:2 }}>
+            <button onClick={() => setView("calendar")} style={{ background:view==="calendar"?"#333":"transparent", color:view==="calendar"?"#e8e4e1":"#555", border:"none", borderRadius:4, padding:"4px 10px", fontSize:10, fontWeight:500, cursor:"pointer" }}>Calendrier</button>
+            <button onClick={() => setView("list")} style={{ background:view==="list"?"#333":"transparent", color:view==="list"?"#e8e4e1":"#555", border:"none", borderRadius:4, padding:"4px 10px", fontSize:10, fontWeight:500, cursor:"pointer" }}>Liste</button>
+          </div>
+        </div>
+        <button onClick={() => setShowAdd(!showAdd)} style={{ background:showAdd?"#333":"#e8e4e1", color:showAdd?"#888":"#131211", border:"none", borderRadius:8, padding:"8px 16px", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+          {showAdd ? "Annuler" : "+ Ajouter"}
+        </button>
+      </div>
+
+      {/* Formulaire ajout */}
+      {showAdd && (
+        <div className="fade-in" style={{ background:"#1c1a19", border:"1px solid #2a2725", borderRadius:10, padding:"16px", marginBottom:16 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            <div><label style={l}>Date</label><input type="date" style={s} value={form.date} onChange={e => setForm(p => ({ ...p, date:e.target.value }))} /></div>
+            <div><label style={l}>Type</label>
+              <select style={{ ...s, cursor:"pointer" }} value={form.type} onChange={e => setForm(p => ({ ...p, type:e.target.value }))}>
+                {ROUTINE_TYPES.filter(t => t!=="Tous").map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <label style={l}>Nom *</label>
+          <input style={s} placeholder="Ex: Leg Day Glute + StairMaster" value={form.routine} onChange={e => setForm(p => ({ ...p, routine:e.target.value }))} />
+          <label style={l}>Durée</label>
+          <input style={s} placeholder="Ex: 55 min" value={form.duration} onChange={e => setForm(p => ({ ...p, duration:e.target.value }))} />
+          <label style={l}>Notes</label>
+          <textarea style={{ ...s, minHeight:50, resize:"vertical" }} placeholder="PRs, sensations..." value={form.notes} onChange={e => setForm(p => ({ ...p, notes:e.target.value }))} />
+          <button onClick={save} style={{ width:"100%", padding:"10px", borderRadius:8, border:"none", background:form.routine.trim()?"#e8e4e1":"#333", color:form.routine.trim()?"#131211":"#555", fontWeight:700, fontSize:13, cursor:form.routine.trim()?"pointer":"default" }}>Sauvegarder</button>
+        </div>
+      )}
+
+      {/* Vue Calendrier */}
+      {view === "calendar" && (
+        <div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <button onClick={prevMonth} style={{ background:"none", border:"1px solid #2a2725", borderRadius:6, padding:"6px 12px", color:"#888", fontSize:14, cursor:"pointer" }}>←</button>
+            <div style={{ fontSize:14, fontWeight:700, color:"#e8e4e1" }}>{monthFull[calMonth.m]} {calMonth.y}</div>
+            <button onClick={nextMonth} style={{ background:"none", border:"1px solid #2a2725", borderRadius:6, padding:"6px 12px", color:"#888", fontSize:14, cursor:"pointer" }}>→</button>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:2, marginBottom:4 }}>
+            {dayLabels.map(d => <div key={d} style={{ textAlign:"center", fontSize:9, fontWeight:600, color:"#555", padding:"4px 0", textTransform:"uppercase", letterSpacing:0.5 }}>{d}</div>)}
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:2, marginBottom:16 }}>
+            {calDays.map((d, i) => {
+              if (d === null) return <div key={"e"+i} />;
+              const ds = dateStr(d);
+              const dayEntries = calEntries[ds] || [];
+              const has = dayEntries.length > 0;
+              const isToday = ds === todayStr;
+              const isSelected = ds === selectedDate;
+              const tc = has ? (rtColors[dayEntries[0].type] || "#888") : "#333";
+              return (
+                <div key={d} onClick={() => setSelectedDate(isSelected ? null : ds)}
+                  style={{ position:"relative", aspectRatio:"1", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", borderRadius:8, cursor:"pointer", transition:"all 0.15s",
+                    background: isSelected ? tc+"25" : has ? "#1c1a19" : "transparent",
+                    border: isSelected ? "1px solid "+tc+"66" : isToday ? "1px solid #444" : "1px solid transparent"
+                  }}
+                >
+                  <span style={{ fontSize:12, fontWeight:isToday?700:has?600:400, color:isToday?"#e8e4e1":has?"#ccc":"#444" }}>{d}</span>
+                  {has && <div style={{ display:"flex", gap:2, marginTop:2 }}>
+                    {dayEntries.slice(0,3).map((e,j) => <div key={j} style={{ width:5, height:5, borderRadius:3, background:rtColors[e.type]||"#888" }} />)}
+                  </div>}
+                  {dayEntries.length > 1 && <span style={{ fontSize:7, color:"#888", marginTop:1 }}>{dayEntries.length}x</span>}
+                </div>
+              );
+            })}
+          </div>
+          {selectedDate && (
+            <div className="fade-in">
+              <div style={{ fontSize:11, fontWeight:600, color:"#888", marginBottom:8, paddingBottom:6, borderBottom:"1px solid #2a2725" }}>
+                {selectedDate} — {selectedEntries.length} séance{selectedEntries.length>1?"s":""}
+              </div>
+              {selectedEntries.map(({ entry, index }) => <JournalEntry key={index} entry={entry} index={index} onUpdate={update} onDelete={del} onStart={onStart} />)}
+              {!selectedEntries.length && <div style={{ textAlign:"center", padding:"16px", color:"#555", fontSize:12 }}>Aucune séance ce jour.</div>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Vue Liste */}
+      {view === "list" && (
+        <div>
+          <div style={{ fontSize:10, color:"#555", marginBottom:14, fontStyle:"italic" }}>Astuce: dis au Coach IA "aujourd'hui je fais..." et il sauvegarde ta séance ici automatiquement.</div>
+          {Object.entries(grouped).map(([month, items]) => {
+            const [y, m] = month.split("-");
+            const label = (monthNames[m]||m)+" "+y;
+            return (
+              <div key={month} style={{ marginBottom:20 }}>
+                <div style={{ fontSize:11, fontWeight:600, color:"#555", letterSpacing:1, textTransform:"uppercase", marginBottom:8, paddingBottom:6, borderBottom:"1px solid #2a2725" }}>
+                  {label} — {items.length} séance{items.length>1?"s":""}
+                </div>
+                {items.map(({ entry, index }) => <JournalEntry key={index} entry={entry} index={index} onUpdate={update} onDelete={del} onStart={onStart} />)}
+              </div>
+            );
+          })}
+          {!entries.length && <div style={{ textAlign:"center", padding:"40px 20px", color:"#555" }}><div style={{ fontSize:28, marginBottom:8 }}>📝</div><div style={{ fontSize:13 }}>Aucune séance enregistrée.</div></div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 16 — PLANIFICATEUR DE SEMAINE
+// ══════════════════════════════════════════════════════════════
+function WeekTab({ onStart }) {
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [plan, setPlan]             = useState(() => LS.get("an_week_plan", {}));
+  const [assigning, setAssigning]   = useState(null);
+
+  const weekStart = useMemo(() => { const d = new Date(); d.setDate(d.getDate() - d.getDay() + weekOffset*7); return d; }, [weekOffset]);
+
+  const days = useMemo(() => {
+    const labels = ["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
+    const shortMonth = ["jan","fév","mar","avr","mai","jun","jul","aoû","sep","oct","nov","déc"];
+    return Array.from({ length:7 }, (_, i) => {
+      const d = new Date(weekStart); d.setDate(weekStart.getDate()+i);
+      const ds = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+      return { index:i, label:labels[i], date:ds, dayNum:d.getDate(), monthLabel:shortMonth[d.getMonth()], isToday:ds===new Date().toISOString().slice(0,10) };
+    });
+  }, [weekStart]);
+
+  const savePlan = (u) => { setPlan(u); LS.set("an_week_plan", u); };
+  const assign = (dateStr, routine) => { savePlan({ ...plan, [dateStr]:routine }); setAssigning(null); };
+  const remove = (dateStr) => { const u = { ...plan }; delete u[dateStr]; savePlan(u); };
+
+  const journal = useMemo(() => {
+    const custom = LS.get("an_journal", []);
+    const customDates = new Set(custom.map(e => e.date+"|"+e.routine));
+    const base = BASE_JOURNAL.filter(e => !customDates.has(e.date+"|"+e.routine));
+    return [...custom, ...base];
+  }, []);
+
+  const journalDates = useMemo(() => {
+    const map = {};
+    journal.forEach(e => { if (e.date) { if (!map[e.date]) map[e.date]=[]; map[e.date].push(e); } });
+    return map;
+  }, [journal]);
+
+  const weekLabel = useMemo(() => {
+    const end = new Date(weekStart); end.setDate(weekStart.getDate()+6);
+    const sm = ["jan","fév","mar","avr","mai","jun","jul","aoû","sep","oct","nov","déc"];
+    return weekStart.getDate()+" "+sm[weekStart.getMonth()]+" — "+end.getDate()+" "+sm[end.getMonth()]+" "+end.getFullYear();
+  }, [weekStart]);
+
+  return (
+    <div>
+      {/* Navigation semaine */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <button onClick={() => setWeekOffset(w => w-1)} style={{ background:"none", border:"1px solid #2a2725", borderRadius:6, padding:"6px 12px", color:"#888", fontSize:14, cursor:"pointer" }}>←</button>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ fontSize:14, fontWeight:700, color:"#e8e4e1" }}>{weekLabel}</div>
+          {weekOffset !== 0 && <button onClick={() => setWeekOffset(0)} style={{ background:"none", border:"none", color:"#4A7FA5", fontSize:10, cursor:"pointer", marginTop:2 }}>Revenir à cette semaine</button>}
+        </div>
+        <button onClick={() => setWeekOffset(w => w+1)} style={{ background:"none", border:"1px solid #2a2725", borderRadius:6, padding:"6px 12px", color:"#888", fontSize:14, cursor:"pointer" }}>→</button>
+      </div>
+
+      {days.map(day => {
+        const planned = plan[day.date];
+        const done = journalDates[day.date] || [];
+        const hasDone = done.length > 0;
+        const tc = planned ? (rtColors[planned.type]||"#888") : "#333";
+
+        return (
+          <div key={day.date} style={{ background:"#1c1a19", border:day.isToday?"1px solid #444":"1px solid #2a2725", borderRadius:10, padding:"14px 16px", marginBottom:6 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:planned||hasDone?10:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ width:36, height:36, borderRadius:8, background:day.isToday?"#4A7FA520":"#222", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+                  <span style={{ fontSize:14, fontWeight:700, color:day.isToday?"#4A7FA5":"#888", lineHeight:1 }}>{day.dayNum}</span>
+                  <span style={{ fontSize:7, color:day.isToday?"#4A7FA5":"#555", textTransform:"uppercase", fontWeight:600 }}>{day.monthLabel}</span>
+                </div>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:600, color:day.isToday?"#e8e4e1":"#aaa" }}>{day.label}</div>
+                  {hasDone && <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
+                    <div style={{ width:6, height:6, borderRadius:3, background:"#7BB490" }} />
+                    <span style={{ fontSize:9, color:"#7BB490", fontWeight:500 }}>{done.length} séance{done.length>1?"s":""} complétée{done.length>1?"s":""}</span>
+                  </div>}
+                </div>
+              </div>
+              {!planned && <button onClick={() => setAssigning(assigning===day.date ? null : day.date)}
+                style={{ background:assigning===day.date?"#333":"none", border:"1px solid #2a2725", borderRadius:6, padding:"4px 10px", fontSize:10, color:"#666", cursor:"pointer" }}
+              >{assigning===day.date ? "Annuler" : "+ Planifier"}</button>}
+            </div>
+
+            {planned && (
+              <div style={{ background:tc+"10", border:"1px solid "+tc+"33", borderRadius:8, padding:"10px 12px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:600, color:"#e8e4e1", marginBottom:3 }}>{planned.name}</div>
+                  <div style={{ display:"flex", gap:4 }}>
+                    <Badge color={tc}>{planned.type}</Badge>
+                    <Badge color="#888">{planned.duration}</Badge>
+                  </div>
+                </div>
+                <div style={{ display:"flex", gap:4 }}>
+                  <button onClick={() => onStart(planned)} style={{ background:tc, color:"#fff", border:"none", borderRadius:6, padding:"6px 12px", fontSize:10, fontWeight:700, cursor:"pointer" }}>▶</button>
+                  <button onClick={() => remove(day.date)} style={{ background:"none", border:"none", color:"#444", fontSize:14, cursor:"pointer", padding:"2px 6px" }}>×</button>
+                </div>
+              </div>
+            )}
+
+            {hasDone && done.map((e, j) => {
+              const dc = rtColors[e.type] || "#888";
+              return (
+                <div key={j} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0", borderTop:j===0&&planned?"1px solid #2a2725":"none", marginTop:j===0&&planned?8:0 }}>
+                  <div style={{ width:4, height:20, borderRadius:2, background:dc, flexShrink:0 }} />
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:11, fontWeight:500, color:"#aaa", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.routine}</div>
+                    <div style={{ fontSize:9, color:"#555" }}>{e.type}{e.duration?" · "+e.duration:""}</div>
+                  </div>
+                  <div style={{ fontSize:9, color:"#7BB490", fontWeight:600 }}>✓</div>
+                </div>
+              );
+            })}
+
+            {assigning === day.date && (
+              <div className="fade-in" style={{ marginTop:10, paddingTop:10, borderTop:"1px solid #2a2725" }}>
+                <div style={{ fontSize:10, fontWeight:600, color:"#666", marginBottom:8, textTransform:"uppercase", letterSpacing:0.5 }}>Choisir une routine</div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:4, maxHeight:200, overflowY:"auto" }}>
+                  {BASE_ROUTINES.map(r => {
+                    const rc = rtColors[r.type] || "#888";
+                    return (
+                      <button key={r.id} onClick={() => assign(day.date, r)}
+                        style={{ background:"#222", border:"1px solid #2a2725", borderRadius:6, padding:"8px 10px", cursor:"pointer", textAlign:"left" }}
+                      >
+                        <div style={{ fontSize:10, fontWeight:600, color:"#ccc", marginBottom:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.name}</div>
+                        <div style={{ display:"flex", gap:3 }}><Badge color={rc}>{r.type}</Badge><Badge color="#666">{r.duration}</Badge></div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 17 — STATS
+// ══════════════════════════════════════════════════════════════
+function StatsTab({ exercises, maxF }) {
+  const journal = useMemo(() => {
+    const custom = LS.get("an_journal", []);
+    const customDates = new Set(custom.map(e => e.date+"|"+e.routine));
+    const base = BASE_JOURNAL.filter(e => !customDates.has(e.date+"|"+e.routine));
+    return [...custom, ...base];
+  }, []);
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+  const toLocal = (s) => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+  const toStr = (d) => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  const getWeekKey = (d) => { const w = new Date(d); w.setDate(w.getDate()-w.getDay()); return toStr(w); };
+
+  const journalStats = useMemo(() => {
+    const now = new Date();
+    const weekStr = getWeekKey(now);
+    const monthStr = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-01";
+    let thisWeek=0, thisMonth=0, total=journal.length;
+    const typeCounts = {}, weekCounts = {}, monthCounts = {};
+
+    const uniqueDates = [...new Set(journal.map(e => e.date).filter(Boolean))].sort().reverse();
+    let streak = 0;
+    if (uniqueDates.length) {
+      let check = new Date(now);
+      if (!uniqueDates.includes(todayStr)) check.setDate(check.getDate()-1);
+      for (let i=0; i<365; i++) {
+        if (uniqueDates.includes(toStr(check))) { streak++; check.setDate(check.getDate()-1); } else break;
+      }
+    }
+
+    journal.forEach(e => {
+      if (!e.date) return;
+      if (e.date >= weekStr) thisWeek++;
+      if (e.date >= monthStr) thisMonth++;
+      if (e.type) typeCounts[e.type] = (typeCounts[e.type]||0)+1;
+      const d = toLocal(e.date);
+      weekCounts[getWeekKey(d)] = (weekCounts[getWeekKey(d)]||0)+1;
+      monthCounts[e.date.slice(0,7)] = (monthCounts[e.date.slice(0,7)]||0)+1;
+    });
+
+    const months = [];
+    const monthShort = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
+    if (journal.length) {
+      const sorted = [...journal].sort((a,b) => a.date.localeCompare(b.date));
+      const first = toLocal(sorted[0].date);
+      let cursor = new Date(first.getFullYear(), first.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 1);
+      while (cursor <= end) {
+        const mk = toStr(cursor).slice(0,7);
+        months.push({ key:mk, label:monthShort[cursor.getMonth()]+" "+String(cursor.getFullYear()).slice(2), count:monthCounts[mk]||0 });
+        cursor.setMonth(cursor.getMonth()+1);
+      }
+    }
+
+    const activeWeeks = Object.keys(weekCounts).length;
+    const avgPerWeek = activeWeeks > 0 ? (total/activeWeeks).toFixed(1) : "0";
+    const typeArr = Object.entries(typeCounts).sort((a,b) => b[1]-a[1]);
+    return { thisWeek, thisMonth, total, streak, typeArr, months, avgPerWeek };
+  }, [journal]);
+
+  const catStats = useMemo(() => {
+    const cats = {};
+    exercises.forEach(e => { cats[e.category] = (cats[e.category]||0)+e.frequency; });
+    return Object.entries(cats).sort((a,b) => b[1]-a[1]);
+  }, [exercises]);
+
+  const maxMonth = Math.max(...journalStats.months.map(m => m.count), 1);
+
+  return (
+    <div>
+      {/* Overview cards */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(60px, 1fr))", gap:6, marginBottom:20 }}>
+        {[
+          { l:"Cette semaine", v:journalStats.thisWeek,   c:"#4A7FA5" },
+          { l:"Ce mois",       v:journalStats.thisMonth,  c:"#D49A64" },
+          { l:"Total",         v:journalStats.total,      c:"#5BA3B5" },
+          { l:"Streak",        v:journalStats.streak+"j", c:"#7BB490" },
+          { l:"Moy/sem",       v:journalStats.avgPerWeek, c:"#A890B8" },
+        ].map((s, i) => (
+          <div key={i} style={{ background:"#1c1a19", borderRadius:8, padding:"12px 10px", textAlign:"center" }}>
+            <div style={{ fontSize:22, fontWeight:800, color:s.c, lineHeight:1.2 }}>{s.v}</div>
+            <div style={{ fontSize:9, color:"#666", marginTop:3, fontWeight:500, textTransform:"uppercase", letterSpacing:0.8 }}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Histogramme mensuel */}
+      <div style={{ fontSize:12, fontWeight:600, marginBottom:10 }}>Séances par mois</div>
+      <div style={{ background:"#1c1a19", borderRadius:8, padding:"16px 14px", marginBottom:20 }}>
+        <div style={{ display:"flex", alignItems:"flex-end", gap:3, height:100 }}>
+          {journalStats.months.map((m, i) => {
+            const h = Math.max((m.count/maxMonth)*75, m.count>0?6:2);
+            const isThisMonth = i === journalStats.months.length-1;
+            return (
+              <div key={m.key} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                <span style={{ fontSize:9, fontWeight:600, color:m.count>0?"#e8e4e1":"#555" }}>{m.count}</span>
+                <div style={{ width:"100%", height:h, background:isThisMonth?"#4A7FA5":m.count>0?"#4A7FA555":"#2a2725", borderRadius:3, transition:"height 0.3s" }} />
+                <span style={{ fontSize:7, color:isThisMonth?"#4A7FA5":"#555", fontWeight:isThisMonth?600:400 }}>{m.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Répartition par type */}
+      {journalStats.typeArr.length > 0 && (
+        <div>
+          <div style={{ fontSize:12, fontWeight:600, marginBottom:10 }}>Répartition par type</div>
+          <div style={{ background:"#1c1a19", borderRadius:8, padding:"12px 14px", marginBottom:20 }}>
+            {journalStats.typeArr.map(([type, count]) => {
+              const c = rtColors[type] || "#888";
+              const p = (count/journalStats.typeArr[0][1])*100;
+              return (
+                <div key={type} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:5 }}>
+                  <div style={{ width:85, fontSize:10, fontWeight:500, color:"#999" }}>{type}</div>
+                  <div style={{ flex:1, height:14, background:"#2a2725", borderRadius:3, overflow:"hidden", position:"relative" }}>
+                    <div style={{ width:p+"%", height:"100%", background:c+"33", borderRadius:3 }} />
+                    <span style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", fontSize:9, fontWeight:600, color:c }}>{count}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Volume par catégorie */}
+      <div style={{ fontSize:12, fontWeight:600, marginBottom:10 }}>Volume par catégorie (banque)</div>
+      <div style={{ background:"#1c1a19", borderRadius:8, padding:"12px 14px", marginBottom:20 }}>
+        {catStats.map(([cat, total]) => {
+          const c = catColors[cat] || "#888";
+          const p = (total/catStats[0][1])*100;
+          return (
+            <div key={cat} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:5 }}>
+              <div style={{ width:85, fontSize:10, fontWeight:500, color:"#999" }}>{cat}</div>
+              <div style={{ flex:1, height:14, background:"#2a2725", borderRadius:3, overflow:"hidden", position:"relative" }}>
+                <div style={{ width:p+"%", height:"100%", background:c+"33", borderRadius:3 }} />
+                <span style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", fontSize:9, fontWeight:600, color:c }}>{total}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Progressions */}
+      <div style={{ fontSize:12, fontWeight:600, marginBottom:10 }}>Progressions</div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(140px, 1fr))", gap:6 }}>
+        {[
+          { name:"Back Squat",         s:"—",  e:"—", p:"À suivre" },
+          { name:"Deadlift",           s:"—", e:"—", p:"À suivre" },
+          { name:"Bench Press",        s:"—",  e:"—", p:"À suivre" },
+          { name:"Pull-ups",           s:"—",  e:"—", p:"À suivre"  },
+          { name:"Sled Push",          s:"—",  e:"—", p:"À suivre"  },
+          { name:"RDL",                s:"—", e:"—", p:"À suivre"  },
+          { name:"Farmer Carry",       s:"—", e:"—", p:"À suivre"  },
+          { name:"KB Swing",           s:"—", e:"—", p:"À suivre"  },
+        ].map((x, i) => (
+          <div key={i} style={{ background:"#1c1a19", borderRadius:8, padding:"10px 12px" }}>
+            <div style={{ fontSize:11, fontWeight:600, color:"#ccc", marginBottom:3 }}>{x.name}</div>
+            <div style={{ fontSize:10, color:"#666" }}>{x.s} → <span style={{ color:"#7BB490", fontWeight:600 }}>{x.e} lb</span></div>
+            <div style={{ fontSize:16, fontWeight:700, color:"#7BB490", marginTop:2 }}>{x.p}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 17b — HARRICANA TAB
+// ══════════════════════════════════════════════════════════════
+
+const HARRICANA_PLAN = [
+  { sem:1,  bloc:"Bloc 1 — Base",        dateDebut:"2026-04-28", vol:25,  lundi:"7 km Z2 6:30-7:30/km", mardi:"Force fonctionnelle — Squat 4×8 / SDT 3×10 / Fentes 3×10 / Gainage", jeudi:"7 km Z2 + strides 6×100m", vendredi:"Mobilité + proprio 45 min", samedi:"Vélo récup 60 min Z1-Z2", dimanche:"10 km plat — Z2 strict 7:00-8:00/km" },
+  { sem:2,  bloc:"Bloc 1 — Base",        dateDebut:"2026-05-05", vol:28,  lundi:"8 km Z2", mardi:"Force fonctionnelle — Progression charges +5%", jeudi:"8 km Z2 + strides 6×100m", vendredi:"Mobilité + proprio 45 min", samedi:"Vélo récup 60 min", dimanche:"12 km plat-vallonné Z2" },
+  { sem:3,  bloc:"Bloc 1 — Base",        dateDebut:"2026-05-12", vol:32,  lundi:"8 km Z2", mardi:"Force fonctionnelle — Maintien charges sem.2", jeudi:"10 km Z2 + strides 8×100m", vendredi:"Mobilité + proprio 45 min", samedi:"Vélo récup 75 min", dimanche:"14 km vallonné Z2" },
+  { sem:4,  bloc:"Bloc 1 — DÉCHARGE",    dateDebut:"2026-05-19", vol:22,  lundi:"6 km Z2", mardi:"Force LÉGER 2×8 reps charges -30%", jeudi:"6 km Z2", vendredi:"OFF", samedi:"Vélo récup 45 min", dimanche:"10 km facile Z2" },
+  { sem:5,  bloc:"Bloc 2 — Dénivelé",    dateDebut:"2026-05-26", vol:36,  lundi:"10 km Z2", mardi:"Force fonctionnelle — Reprise charges normales", jeudi:"Côtes 10 km — 6×200m pente 6-8%", vendredi:"Mobilité + proprio 45 min", samedi:"Vélo récup 75 min", dimanche:"16 km vallonné Z2" },
+  { sem:6,  bloc:"Bloc 2 — Dénivelé",    dateDebut:"2026-06-02", vol:40,  lundi:"11 km Z2", mardi:"Force fonctionnelle — Focus quads/fessiers", jeudi:"Fartlek 11 km 8×(2'fort/2'lent) Z4", vendredi:"Spécifique trail léger 45 min", samedi:"Vélo récup 75 min", dimanche:"TRAIL 18 km Saint-Bruno — bâtons recommandés" },
+  { sem:7,  bloc:"Bloc 2 — Dénivelé",    dateDebut:"2026-06-09", vol:45,  lundi:"12 km Z2", mardi:"Force fonctionnelle", jeudi:"Fartlek 12 km 6×(3'fort/90\" lent)", vendredi:"Spécifique trail léger 45 min", samedi:"Vélo récup 90 min", dimanche:"TRAIL 20 km — bâtons" },
+  { sem:8,  bloc:"Bloc 2 — DÉCHARGE",    dateDebut:"2026-06-16", vol:30,  lundi:"8 km Z2", mardi:"Force LÉGER 45 min", jeudi:"8 km Z2 + strides 6×100m", vendredi:"OFF", samedi:"VÉLO BIKEPACKING J1", dimanche:"VÉLO BIKEPACKING J2-J3" },
+  { sem:9,  bloc:"Bloc 3 — Spécifique",  dateDebut:"2026-06-23", vol:48,  lundi:"13 km Z2", mardi:"Force fonctionnelle — Intégrer step-down", jeudi:"Côtes 13 km — 8×300m pente 6-10%", vendredi:"Spécifique trail 45 min excentrique modéré", samedi:"Vélo récup 90 min", dimanche:"TRAIL 22 km dénivelé — Tester ravitaillement 1 gel/30-45min" },
+  { sem:10, bloc:"Bloc 3 — Spécifique",  dateDebut:"2026-06-30", vol:52,  lundi:"13 km Z2", mardi:"Force fonctionnelle", jeudi:"Côtes 14 km — 10×300m", vendredi:"Spécifique trail 45 min", samedi:"Vélo récup 90 min", dimanche:"TRAIL 25 km Sutton/Orford — bâtons + ravito complet" },
+  { sem:11, bloc:"Bloc 3 — Spécifique",  dateDebut:"2026-07-07", vol:55,  lundi:"14 km Z2", mardi:"Force fonctionnelle", jeudi:"Fartlek 14 km 5×(4'fort/2'lent)", vendredi:"Spécifique trail léger 45 min", samedi:"Vélo récup 90 min", dimanche:"TRAIL 27 km montagne" },
+  { sem:12, bloc:"Bloc 3 — DÉCHARGE",    dateDebut:"2026-07-14", vol:40,  lundi:"11 km Z2", mardi:"Force LÉGER 45 min", jeudi:"11 km Z2 + strides", vendredi:"OFF", samedi:"Vélo récup 60 min", dimanche:"18 km Z2 vallonné" },
+  { sem:13, bloc:"Bloc 4 — VACANCES SIA",dateDebut:"2026-07-13", vol:0,   lundi:"SIA Gaspésie J1", mardi:"SIA J2", jeudi:"SIA J4", vendredi:"SIA J5", samedi:"SIA J6", dimanche:"SIA J7" },
+  { sem:14, bloc:"Bloc 4 — Récup",       dateDebut:"2026-07-20", vol:18,  lundi:"OFF / récup totale", mardi:"OFF / marche active", jeudi:"8 km Z2 très facile", vendredi:"OFF / mobilité", samedi:"Vélo récup 60 min", dimanche:"10 km Z2 confort" },
+  { sem:15, bloc:"Bloc 5 — Pic",         dateDebut:"2026-07-28", vol:50,  lundi:"12 km Z2", mardi:"Force fonctionnelle — Reprise progressive", jeudi:"Côtes 13 km — 10×400m", vendredi:"Spécifique trail 45 min", samedi:"Vélo récup 90 min", dimanche:"TRAIL 25 km" },
+  { sem:16, bloc:"Bloc 5 — Pic",         dateDebut:"2026-08-04", vol:58,  lundi:"15 km Z2", mardi:"Force fonctionnelle", jeudi:"Côtes 15 km — 12×400m", vendredi:"Spécifique trail 45 min ⚠️ vraiment léger", samedi:"Vélo récup 90 min", dimanche:"TRAIL 28 km montagne — simulation course" },
+  { sem:17, bloc:"Bloc 5 — PIC MAX",     dateDebut:"2026-08-11", vol:62,  lundi:"15 km Z2", mardi:"Force fonctionnelle", jeudi:"Fartlek 15 km 6×(3'fort/2'lent)", vendredi:"Mobilité SEULEMENT 30 min ⚠️ pas d'excentrique", samedi:"Vélo récup 90 min", dimanche:"TRAIL 32 KM TEST — Réplique conditions Harricana" },
+  { sem:18, bloc:"Bloc 5 — DÉCHARGE",    dateDebut:"2026-08-18", vol:42,  lundi:"12 km Z2", mardi:"Force LÉGER 45 min", jeudi:"12 km Z2 + strides", vendredi:"OFF", samedi:"Vélo récup 60 min", dimanche:"18 km Z2 facile" },
+  { sem:19, bloc:"Bloc 6 — Affûtage",    dateDebut:"2026-08-25", vol:35,  lundi:"10 km Z2", mardi:"Force LÉGER 45 min", jeudi:"Allure spécifique 7 km (allure course)", vendredi:"Mobilité 30 min", samedi:"Vélo récup 45 min", dimanche:"18 km Z2 confort" },
+  { sem:20, bloc:"Bloc 6 — Affûtage final",dateDebut:"2026-09-01",vol:22, lundi:"6 km Z2", mardi:"Mobilité 30 min zéro charge", jeudi:"5 km allure course + 4×100m strides", vendredi:"OFF", samedi:"Marche 30 min", dimanche:"Course facile 12 km Z2 (le 6 sept)" },
+];
+
+const RACE_DATE = new Date(2026, 8, 11); // 11 sept 2026
+
+const blocColors = {
+  "Bloc 1": "#5BA3B5",
+  "Bloc 2": "#D49A64",
+  "Bloc 3": "#4A7FA5",
+  "Bloc 4": "#7BB490",
+  "Bloc 5": "#A890B8",
+  "Bloc 6": "#C9A84C",
+};
+
+function getBlocColor(bloc) {
+  const key = Object.keys(blocColors).find(k => bloc.startsWith(k));
+  return blocColors[key] || "#888";
+}
+
+function HarricanaTab() {
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+
+  // Trouver la semaine courante
+  const currentWeek = useMemo(() => {
+    for (let i = HARRICANA_PLAN.length - 1; i >= 0; i--) {
+      const s = HARRICANA_PLAN[i];
+      const start = new Date(s.dateDebut);
+      if (today >= start) return s.sem;
+    }
+    return 1;
+  }, []);
+
+  const [selectedSem, setSelectedSem] = useState(currentWeek);
+  const [suivi, setSuivi] = useState(() => LS.get("an_harricana_suivi", {}));
+  const [showRules, setShowRules] = useState(false);
+  const [showZones, setShowZones] = useState(false);
+
+  const saveSuivi = (u) => { setSuivi(u); LS.set("an_harricana_suivi", u); };
+  const updateSem = (sem, field, val) => {
+    const u = { ...suivi, [sem]: { ...(suivi[sem]||{}), [field]: val } };
+    saveSuivi(u);
+  };
+
+  // Jours restants avant la course
+  const daysLeft = Math.ceil((RACE_DATE - today) / (1000*60*60*24));
+  const totalDays = Math.ceil((RACE_DATE - new Date(2026,3,28)) / (1000*60*60*24));
+  const daysElapsed = totalDays - daysLeft;
+  const progressPct = Math.min(Math.max((daysElapsed / totalDays) * 100, 0), 100);
+
+  const selectedPlan = HARRICANA_PLAN.find(s => s.sem === selectedSem);
+  const blocColor = selectedPlan ? getBlocColor(selectedPlan.bloc) : "#888";
+  const semSuivi = suivi[selectedSem] || {};
+
+  // Volume total réel
+  const totalReel = Object.values(suivi).reduce((acc, s) => acc + (parseFloat(s.volReel)||0), 0);
+  const totalPrevu = HARRICANA_PLAN.slice(0, currentWeek).reduce((acc, s) => acc + s.vol, 0);
+
+  const days = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+  const dayKeys = ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"];
+
+  const inp = { background:"#1c1a19", border:"1px solid #2a2725", borderRadius:6, padding:"7px 10px", fontSize:12, color:"#e8e4e1", outline:"none", width:"100%" };
+
+  return (
+    <div>
+      {/* Header course */}
+      <div style={{ background:"linear-gradient(135deg, #1c1a19 0%, #4A7FA511 100%)", border:"1px solid #4A7FA533", borderRadius:12, padding:"18px 16px", marginBottom:16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+          <div>
+            <div style={{ fontSize:11, fontWeight:600, color:"#4A7FA5", letterSpacing:1, textTransform:"uppercase", marginBottom:3 }}>🏔 Objectif</div>
+            <div style={{ fontSize:18, fontWeight:800, color:"#e8e4e1" }}>Harricana 30 km</div>
+            <div style={{ fontSize:12, color:"#888", marginTop:2 }}>Charlevoix — 11 septembre 2026</div>
+          </div>
+          <div style={{ textAlign:"center", background:"#4A7FA520", borderRadius:10, padding:"10px 14px" }}>
+            <div style={{ fontSize:28, fontWeight:800, color:"#4A7FA5", lineHeight:1 }}>{daysLeft}</div>
+            <div style={{ fontSize:9, color:"#4A7FA5", fontWeight:600, textTransform:"uppercase", letterSpacing:0.8, marginTop:2 }}>jours</div>
+          </div>
+        </div>
+        {/* Barre de progression */}
+        <div style={{ marginBottom:8 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"#666", marginBottom:4 }}>
+            <span>28 avr</span>
+            <span style={{ color:"#4A7FA5", fontWeight:600 }}>Sem. {currentWeek}/20 — {Math.round(progressPct)}% complété</span>
+            <span>11 sept</span>
+          </div>
+          <div style={{ height:6, background:"#2a2725", borderRadius:3, overflow:"hidden" }}>
+            <div style={{ width:progressPct+"%", height:"100%", background:"linear-gradient(90deg, #3A6A8A, #4A7FA5)", borderRadius:3, transition:"width 0.5s" }} />
+          </div>
+        </div>
+        {/* Stats rapides */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(90px, 1fr))", gap:6, marginTop:10 }}>
+          {[
+            { l:"Vol. prévu à ce jour", v:totalPrevu+" km", c:"#5BA3B5" },
+            { l:"Vol. réel enregistré", v:Math.round(totalReel)+" km", c:"#7BB490" },
+            { l:"Semaine courante",     v:"Sem. "+currentWeek,          c:"#C9A84C" },
+          ].map((s,i) => (
+            <div key={i} style={{ background:"#131211", borderRadius:7, padding:"8px 10px", textAlign:"center" }}>
+              <div style={{ fontSize:14, fontWeight:700, color:s.c }}>{s.v}</div>
+              <div style={{ fontSize:9, color:"#555", marginTop:1, textTransform:"uppercase", letterSpacing:0.5 }}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Vue d'ensemble des blocs */}
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontSize:11, fontWeight:600, color:"#888", marginBottom:8, textTransform:"uppercase", letterSpacing:0.5 }}>Plan 20 semaines</div>
+        <div style={{ display:"flex", gap:3, flexWrap:"wrap" }}>
+          {HARRICANA_PLAN.map(s => {
+            const c = getBlocColor(s.bloc);
+            const isDecharge = s.bloc.includes("DÉCHARGE") || s.bloc.includes("Récup") || s.bloc.includes("VACANCES");
+            const isCurrent = s.sem === currentWeek;
+            const isSelected = s.sem === selectedSem;
+            const isDone = suivi[s.sem]?.volReel;
+            return (
+              <div key={s.sem} onClick={() => setSelectedSem(s.sem)}
+                style={{ width:32, height:32, borderRadius:6, background: isSelected ? c : isDone ? c+"44" : isDecharge ? "#1c1a19" : "#222",
+                  border: isCurrent ? "2px solid "+c : isSelected ? "2px solid "+c : "1px solid #2a2725",
+                  display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", position:"relative", transition:"all 0.15s"
+                }}
+              >
+                <span style={{ fontSize:10, fontWeight:700, color: isSelected ? "#fff" : isCurrent ? c : "#666" }}>{s.sem}</span>
+                {isCurrent && <div style={{ position:"absolute", top:-3, right:-3, width:7, height:7, borderRadius:4, background:"#4A7FA5", border:"1px solid #131211" }} />}
+                {isDone && !isSelected && <div style={{ position:"absolute", bottom:-2, right:-2, fontSize:7, color:"#7BB490" }}>✓</div>}
+              </div>
+            );
+          })}
+          <div style={{ width:32, height:32, borderRadius:6, background:"#4A7FA533", border:"1px solid #4A7FA544", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <span style={{ fontSize:8, fontWeight:700, color:"#4A7FA5", textAlign:"center", lineHeight:1 }}>🏔</span>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:10, marginTop:8, flexWrap:"wrap" }}>
+          {Object.entries(blocColors).map(([k,c]) => (
+            <div key={k} style={{ display:"flex", alignItems:"center", gap:4 }}>
+              <div style={{ width:8, height:8, borderRadius:2, background:c }} />
+              <span style={{ fontSize:9, color:"#666" }}>{k}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Détail semaine sélectionnée */}
+      {selectedPlan && (
+        <div className="fade-in" style={{ background:"#1c1a19", border:"1px solid "+blocColor+"44", borderRadius:12, padding:"16px", marginBottom:16 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:700, color:"#e8e4e1" }}>Semaine {selectedPlan.sem} — {selectedPlan.dateDebut}</div>
+              <div style={{ marginTop:3 }}><span style={{ background:blocColor+"22", color:blocColor, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:4 }}>{selectedPlan.bloc}</span></div>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontSize:18, fontWeight:700, color:blocColor }}>{selectedPlan.vol} km</div>
+              <div style={{ fontSize:9, color:"#555", textTransform:"uppercase" }}>prévu</div>
+            </div>
+          </div>
+
+          {/* Séances de la semaine */}
+          <div style={{ marginBottom:14 }}>
+            {days.map((day, i) => {
+              const key = dayKeys[i];
+              const seance = selectedPlan[key];
+              if (!seance) return (
+                <div key={day} style={{ display:"flex", gap:10, alignItems:"center", padding:"7px 0", borderBottom:"1px solid #2a2725" }}>
+                  <span style={{ fontSize:10, fontWeight:600, color:"#555", width:70, flexShrink:0 }}>{day}</span>
+                  <span style={{ fontSize:11, color:"#444", fontStyle:"italic" }}>OFF / Récupération</span>
+                </div>
+              );
+              const isQuality = seance.includes("Fartlek") || seance.includes("Côtes") || seance.includes("strides") || seance.includes("allure course");
+              const isLongue = seance.includes("TRAIL") || seance.includes("longue") || seance.includes("km plat") || seance.includes("km Z2 c") || seance.includes("vallonné") || (parseFloat(seance) >= 10);
+              const isRenfo = seance.includes("Force") || seance.includes("Mobilité") || seance.includes("Spécifique trail");
+              const isCardio = seance.includes("Vélo") || seance.includes("Marche");
+              const dotColor = isQuality ? "#D49A64" : isLongue ? "#4A7FA5" : isRenfo ? "#A890B8" : isCardio ? "#5BA3B5" : "#666";
+              return (
+                <div key={day} style={{ display:"flex", gap:10, alignItems:"flex-start", padding:"8px 0", borderBottom:"1px solid #1a1918" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:5, width:75, flexShrink:0, paddingTop:1 }}>
+                    <div style={{ width:6, height:6, borderRadius:3, background:dotColor, flexShrink:0 }} />
+                    <span style={{ fontSize:10, fontWeight:600, color:"#888" }}>{day}</span>
+                  </div>
+                  <span style={{ fontSize:12, color:"#ccc", lineHeight:1.5 }}>{seance}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Suivi de la semaine */}
+          <div style={{ borderTop:"1px solid #2a2725", paddingTop:12 }}>
+            <div style={{ fontSize:10, fontWeight:600, color:"#888", marginBottom:8, textTransform:"uppercase", letterSpacing:0.5 }}>Suivi de la semaine</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+              <div>
+                <div style={{ fontSize:9, color:"#666", marginBottom:3 }}>Volume réel (km)</div>
+                <input type="number" style={inp} placeholder={"Prévu: "+selectedPlan.vol+" km"} value={semSuivi.volReel||""} onChange={e => updateSem(selectedPlan.sem, "volReel", e.target.value)} />
+              </div>
+              <div>
+                <div style={{ fontSize:9, color:"#666", marginBottom:3 }}>Ressenti général (1-10)</div>
+                <input type="number" min="1" max="10" style={inp} placeholder="1=épuisée, 10=légère" value={semSuivi.ressenti||""} onChange={e => updateSem(selectedPlan.sem, "ressenti", e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize:9, color:"#666", marginBottom:3 }}>Notes / Sensations</div>
+              <textarea style={{ ...inp, minHeight:50, resize:"vertical", lineHeight:1.5 }} placeholder="Comment ça s'est passé? PRs, douleurs, conditions..." value={semSuivi.notes||""} onChange={e => updateSem(selectedPlan.sem, "notes", e.target.value)} />
+            </div>
+            {semSuivi.volReel && (
+              <div style={{ marginTop:8, display:"flex", gap:6, alignItems:"center" }}>
+                <div style={{ flex:1, height:4, background:"#2a2725", borderRadius:2, overflow:"hidden" }}>
+                  <div style={{ width:Math.min((semSuivi.volReel/selectedPlan.vol)*100, 100)+"%", height:"100%", background: semSuivi.volReel >= selectedPlan.vol ? "#7BB490" : "#C9A84C", borderRadius:2 }} />
+                </div>
+                <span style={{ fontSize:10, color: semSuivi.volReel >= selectedPlan.vol ? "#7BB490" : "#C9A84C", fontWeight:600 }}>
+                  {Math.round((semSuivi.volReel/selectedPlan.vol)*100)}%
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Zones FC */}
+      <div style={{ background:"#1c1a19", border:"1px solid #2a2725", borderRadius:10, marginBottom:10, overflow:"hidden" }}>
+        <div onClick={() => setShowZones(!showZones)} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", cursor:"pointer" }}>
+          <span style={{ fontSize:12, fontWeight:600, color:"#ccc" }}>❤️ Zones de fréquence cardiaque</span>
+          <span style={{ fontSize:10, color:"#555" }}>{showZones?"Fermer":"Voir"}</span>
+        </div>
+        {showZones && (
+          <div className="fade-in" style={{ padding:"0 14px 14px" }}>
+            {[
+              { z:"Zone 1", pct:"50-60%", bpm:"98-118",   usage:"Marche, échauffement, retour calme",             c:"#5BA3B5" },
+              { z:"Zone 2 ★", pct:"60-70%", bpm:"118-137", usage:"Course facile + LONGUE — cœur du plan",          c:"#7BB490" },
+              { z:"Zone 3", pct:"70-80%", bpm:"137-157",   usage:"Tempo modéré, allure marathon",                  c:"#C9A84C" },
+              { z:"Zone 4 ★", pct:"80-90%", bpm:"157-176", usage:"Fartlek + Côtes (séances qualité)",              c:"#D49A64" },
+              { z:"Zone 5", pct:"90-100%",bpm:"176-196",   usage:"Sprints courts — rare en prépa trail",           c:"#C46868" },
+            ].map((z,i) => (
+              <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 0", borderBottom:i<4?"1px solid #1a1918":"none" }}>
+                <div style={{ width:4, height:28, borderRadius:2, background:z.c, flexShrink:0 }} />
+                <div style={{ flex:1 }}>
+                  <div style={{ display:"flex", gap:6, alignItems:"center", marginBottom:2 }}>
+                    <span style={{ fontSize:11, fontWeight:600, color:z.c }}>{z.z}</span>
+                    <span style={{ fontSize:10, color:"#666" }}>{z.pct}</span>
+                    <span style={{ fontSize:10, fontWeight:600, color:"#888" }}>{z.bpm} bpm</span>
+                  </div>
+                  <div style={{ fontSize:11, color:"#888" }}>{z.usage}</div>
+                </div>
+              </div>
+            ))}
+            <div style={{ marginTop:10, background:"#4A7FA511", border:"1px solid #4A7FA533", borderRadius:7, padding:"8px 10px", fontSize:11, color:"#4A7FA5", lineHeight:1.6 }}>
+              ⚠️ Faire un test FC max sur terrain dans les 2 premières semaines (sprint 3 min en montée 5-6%) pour calibrer précisément.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Règles non négociables */}
+      <div style={{ background:"#1c1a19", border:"1px solid #2a2725", borderRadius:10, overflow:"hidden" }}>
+        <div onClick={() => setShowRules(!showRules)} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", cursor:"pointer" }}>
+          <span style={{ fontSize:12, fontWeight:600, color:"#ccc" }}>📋 Règles & signaux de blessure</span>
+          <span style={{ fontSize:10, color:"#555" }}>{showRules?"Fermer":"Voir"}</span>
+        </div>
+        {showRules && (
+          <div className="fade-in" style={{ padding:"0 14px 14px" }}>
+            <div style={{ fontSize:10, fontWeight:600, color:"#D49A64", marginBottom:8, textTransform:"uppercase", letterSpacing:0.5 }}>Les 3 règles non négociables</div>
+            {[
+              { r:"Règle 1 — Fraîcheur", d:"48h légères avant la longue. Jamais de qualité ni renfo lourd dans les 2 jours qui précèdent." },
+              { r:"Règle 2 — Post-longue", d:"24h minimum OFF ou vélo récup après la longue. Jamais de course ni de renfo." },
+              { r:"Règle 3 — Espacement", d:"72h idéal (48h acceptable) entre la course qualité et la longue." },
+            ].map((r,i) => (
+              <div key={i} style={{ background:"#131211", borderRadius:7, padding:"8px 10px", marginBottom:6 }}>
+                <div style={{ fontSize:11, fontWeight:600, color:"#D49A64", marginBottom:2 }}>{r.r}</div>
+                <div style={{ fontSize:11, color:"#999", lineHeight:1.5 }}>{r.d}</div>
+              </div>
+            ))}
+            <div style={{ fontSize:10, fontWeight:600, color:"#C46868", marginTop:10, marginBottom:8, textTransform:"uppercase", letterSpacing:0.5 }}>Signaux de blessure — Arrêt immédiat</div>
+            {["Douleur localisée qui persiste après l'échauffement","Boitement, même léger","Douleur la nuit ou au réveil","Fatigue qui ne récupère plus malgré 2 jours OFF"].map((s,i) => (
+              <div key={i} style={{ display:"flex", gap:8, alignItems:"flex-start", marginBottom:5 }}>
+                <span style={{ color:"#C46868", fontSize:11, flexShrink:0, marginTop:1 }}>⚠️</span>
+                <span style={{ fontSize:11, color:"#999" }}>{s}</span>
+              </div>
+            ))}
+            <div style={{ fontSize:10, fontWeight:600, color:"#C46868", marginTop:10, marginBottom:8, textTransform:"uppercase", letterSpacing:0.5 }}>3 erreurs à ne pas commettre</div>
+            {["Reporter une longue manquée à la semaine suivante → Accepter la perte.","Faire qualité et longue à 24h d'écart → Si horaire impossible, garder la longue.","Compresser 4 efforts en 5 jours → Reprendre simplement la semaine suivante."].map((e,i) => (
+              <div key={i} style={{ display:"flex", gap:8, alignItems:"flex-start", marginBottom:5 }}>
+                <span style={{ color:"#C46868", fontSize:11, flexShrink:0, marginTop:1 }}>✗</span>
+                <span style={{ fontSize:11, color:"#999" }}>{e}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// SECTION 18 — APP PRINCIPALE
+// ══════════════════════════════════════════════════════════════
+function App() {
+  const [tab, setTab]             = useState("harricana");
+  const [search, setSearch]       = useState("");
+  const [category, setCategory]   = useState("Tous");
+  const [equipment, setEquipment] = useState("Tous");
+  const [sortBy, setSortBy]       = useState("frequency");
+  const [routineType, setRoutineType] = useState("Tous");
+  const [showAdd, setShowAdd]     = useState(false);
+  const [custom, setCustom]       = useState(() => LS.get("an_custom_ex", []));
+  const [session, setSession]     = useState(null);
+
+  const all = useMemo(() => [...BASE_EXERCISES, ...custom.map((e, i) => ({ ...e, id:"c"+i, frequency:e.frequency||1 }))], [custom]);
+  const maxF = Math.max(...all.map(e => e.frequency));
+
+  const filtered = useMemo(() => {
+    let r = all.filter(e => {
+      if (search && !e.name.toLowerCase().includes(search.toLowerCase()) && !(e.notes||"").toLowerCase().includes(search.toLowerCase())) return false;
+      if (category !== "Tous" && e.category !== category) return false;
+      if (equipment !== "Tous" && !(e.equipment||"").includes(equipment)) return false;
+      return true;
+    });
+    if (sortBy === "frequency") r.sort((a,b) => b.frequency-a.frequency);
+    else if (sortBy === "name") r.sort((a,b) => a.name.localeCompare(b.name));
+    else if (sortBy === "category") r.sort((a,b) => a.category.localeCompare(b.category)||b.frequency-a.frequency);
+    return r;
+  }, [search, category, equipment, sortBy, all]);
+
+  const filteredRt = useMemo(() => BASE_ROUTINES.filter(r => routineType==="Tous" || r.type===routineType), [routineType]);
+  const addEx = (f) => { const u = [...custom, { ...f, frequency:1 }]; setCustom(u); LS.set("an_custom_ex", u); };
+
+  const tabs = [
+    { key:"harricana",  label:"Harricana"  },
+    { key:"journal",    label:"Journal"    },
+    { key:"coach",      label:"Coach IA"   },
+    { key:"week",       label:"Semaine"    },
+    { key:"exercises",  label:"Exercices"  },
+    { key:"routines",   label:"Routines"   },
+    { key:"stats",      label:"Stats"      },
+  ];
+
+  const inp = { background:"#1c1a19", color:"#e8e4e1", border:"1px solid #2a2725", borderRadius:8, padding:"9px 12px", fontSize:12, outline:"none", cursor:"pointer", minWidth:0 };
+
+  if (session) return <SessionMode routine={session} onEnd={() => setSession(null)} />;
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#131211" }}>
+      {showAdd && <AddModal onClose={() => setShowAdd(false)} onSave={addEx} />}
+
+      {/* HEADER */}
+      <div style={{ background:"#1c1a19", borderBottom:"1px solid #2a2725", padding:"20px 14px 16px" }}>
+        <div style={{ maxWidth:900, margin:"0 auto" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
+            <div>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
+                <div style={{ width:3, height:12, background:"#4A7FA5", borderRadius:2 }} />
+                <span style={{ fontSize:10, fontWeight:600, color:"#4A7FA5", letterSpacing:2, textTransform:"uppercase" }}>training database</span>
+              </div>
+              <div style={{ fontSize:22, fontWeight:700, color:"#e8e4e1", letterSpacing:-0.5 }}>Antoine's Training</div>
+            </div>
+            <button onClick={() => setShowAdd(true)} style={{ background:"#e8e4e1", color:"#131211", border:"none", borderRadius:8, padding:"8px 16px", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+              + Ajouter
+            </button>
+          </div>
+
+          {/* Mini stats header */}
+          <div style={{ display:"flex", gap:6, marginBottom:14 }}>
+            {[
+              { l:"Exercices", v:all.length,                                                                                    c:"#4A7FA5" },
+              { l:"Routines",  v:BASE_ROUTINES.length,                                                                          c:"#D49A64" },
+              { l:"Séances",   v:(() => { const c=LS.get("an_journal",[]); const cd=new Set(c.map(e=>e.date+"|"+e.routine)); return c.length+BASE_JOURNAL.filter(e=>!cd.has(e.date+"|"+e.routine)).length; })(), c:"#5BA3B5" },
+            ].map((s, i) => (
+              <div key={i} style={{ background:"#222", borderRadius:6, padding:"7px 12px" }}>
+                <div style={{ fontSize:16, fontWeight:700, color:s.c, lineHeight:1.2 }}>{s.v}</div>
+                <div style={{ fontSize:9, color:"#666", marginTop:1, fontWeight:500, textTransform:"uppercase", letterSpacing:0.8 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tabs — onglets principaux + menu déroulant */}
+          <div style={{ display:"flex", gap:2, alignItems:"center" }}>
+            {/* 3 premiers onglets toujours visibles */}
+            {tabs.slice(0,3).map(t => (
+              <button key={t.key} onClick={() => setTab(t.key)}
+                style={{ background:tab===t.key?"#333":"#222", color:tab===t.key?"#e8e4e1":"#666", border:"none", borderRadius:6, padding:"7px 12px", fontSize:11, fontWeight:tab===t.key?600:500, cursor:"pointer", transition:"all 0.15s", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4 }}
+              >
+                {t.label}
+                {t.key==="coach" && <span style={{ fontSize:8, background:"#4A7FA5", color:"#fff", padding:"1px 4px", borderRadius:3, fontWeight:700 }}>IA</span>}
+              </button>
+            ))}
+            {/* Menu déroulant pour le reste */}
+            <div style={{ position:"relative", marginLeft:"auto" }}>
+              <select
+                value={tabs.slice(3).find(t => t.key===tab)?.key || ""}
+                onChange={e => { if (e.target.value) setTab(e.target.value); }}
+                style={{ background: tabs.slice(3).some(t=>t.key===tab) ? "#333" : "#222", color: tabs.slice(3).some(t=>t.key===tab) ? "#e8e4e1" : "#666", border:"none", borderRadius:6, padding:"7px 10px", fontSize:11, fontWeight:500, cursor:"pointer", outline:"none", appearance:"none", WebkitAppearance:"none", paddingRight:24 }}
+              >
+                <option value="">Plus ▾</option>
+                {tabs.slice(3).map(t => (
+                  <option key={t.key} value={t.key}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CONTENU */}
+      <div style={{ maxWidth:900, margin:"0 auto", padding:"16px 14px 80px" }}>
+
+        {/* Onglet Exercices */}
+        {tab === "exercises" && (
+          <div>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14 }}>
+              <input type="text" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, flex:"1 1 160px", minWidth:160 }} />
+              <select value={category} onChange={e => setCategory(e.target.value)} style={inp}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select value={equipment} onChange={e => setEquipment(e.target.value)} style={inp}>
+                {EQUIPMENT_LIST.map(eq => <option key={eq} value={eq}>{eq==="Tous"?"Équipement":eq}</option>)}
+              </select>
+              <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={inp}>
+                <option value="frequency">Fréquence</option>
+                <option value="name">A → Z</option>
+                <option value="category">Catégorie</option>
+              </select>
+            </div>
+            <div style={{ fontSize:11, color:"#555", marginBottom:10 }}>{filtered.length} exercice{filtered.length>1?"s":""}</div>
+            {filtered.map(ex => <ExCard key={ex.id} ex={ex} maxF={maxF} />)}
+          </div>
+        )}
+
+        {/* Onglet Routines */}
+        {tab === "routines" && (
+          <div>
+            <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:14 }}>
+              {ROUTINE_TYPES.map(rt => (
+                <button key={rt} onClick={() => setRoutineType(rt)}
+                  style={{ background:routineType===rt?(rtColors[rt]||"#4A7FA5")+"18":"transparent", color:routineType===rt?rtColors[rt]||"#4A7FA5":"#666", border:"1px solid "+(routineType===rt?(rtColors[rt]||"#4A7FA5")+"44":"#2a2725"), borderRadius:6, padding:"6px 12px", fontSize:11, fontWeight:500, cursor:"pointer" }}
+                >{rt}</button>
+              ))}
+            </div>
+            {filteredRt.map(r => <RtCard key={r.id} routine={r} onStart={setSession} />)}
+          </div>
+        )}
+
+        {tab === "week"    && <WeekTab  onStart={setSession} />}
+        {tab === "coach"   && <CoachTab pool={all} />}
+        {tab === "journal" && <JournalTab onStart={setSession} />}
+        {tab === "stats"   && <StatsTab exercises={all} maxF={maxF} />}
+        {tab === "harricana" && <HarricanaTab />}
+      </div>
+
+      {/* FOOTER */}
+      <div style={{ borderTop:"1px solid #2a2725", padding:"16px 20px", textAlign:"center", fontSize:9, color:"#444", letterSpacing:1, textTransform:"uppercase" }}>
+        Antoine's Training · Juin 2025 – Avril 2026
+      </div>
+
+      {/* TIMER DE REPOS FLOTTANT */}
+      <RestTimer />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
